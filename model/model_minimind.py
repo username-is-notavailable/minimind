@@ -25,6 +25,10 @@ class MiniMindConfig(PretrainedConfig):
             rope_theta: int = 1000000.0,
             inference_rope_scaling: bool = False,
             flash_attn: bool = True,
+            use_mla: bool = False,
+            mla_kv_dim: int = -1,
+            mla_q_dim: int = -1,
+            mla_rope_dim: int = -1,
             ####################################################
             # Here are the specific configurations of MOE
             # When use_moe is false, the following is invalid
@@ -64,6 +68,10 @@ class MiniMindConfig(PretrainedConfig):
             "type": "yarn"
         } if self.inference_rope_scaling else None
         self.flash_attn = flash_attn
+        self.use_mla = use_mla
+        self.mla_kv_dim = mla_kv_dim
+        self.mla_q_dim = mla_q_dim
+        self.mla_rope_dim = mla_rope_dim
         ####################################################
         # Here are the specific configurations of MOE
         # When use_moe is false, the following is invalid
@@ -128,14 +136,12 @@ def precompute_freqs_cis(dim: int, end: int = int(32 * 1024), rope_base: float =
     return freqs_cos, freqs_sin
 
 
-def apply_rotary_pos_emb(q, k, cos, sin, position_ids=None, unsqueeze_dim=1):
+def apply_rotary_pos_emb(x, cos, sin, position_ids=None, unsqueeze_dim=1):
     def rotate_half(x):
         return torch.cat((-x[..., x.shape[-1] // 2:], x[..., : x.shape[-1] // 2]), dim=-1)
 
-    q_embed = (q * cos.unsqueeze(unsqueeze_dim)) + (rotate_half(q) * sin.unsqueeze(unsqueeze_dim))
-    k_embed = (k * cos.unsqueeze(unsqueeze_dim)) + (rotate_half(k) * sin.unsqueeze(unsqueeze_dim))
-    return q_embed, k_embed
-
+    x_embed = (x * cos.unsqueeze(unsqueeze_dim)) + (rotate_half(x) * sin.unsqueeze(unsqueeze_dim))
+    return x_embed
 
 def repeat_kv(x: torch.Tensor, n_rep: int) -> torch.Tensor:
     """torch.repeat_interleave(x, dim=2, repeats=n_rep)"""
@@ -156,9 +162,19 @@ class Attention(nn.Module):
         self.n_local_kv_heads = self.num_key_value_heads
         self.n_rep = self.n_local_heads // self.n_local_kv_heads
         self.head_dim = args.hidden_size // args.num_attention_heads
-        self.q_proj = nn.Linear(args.hidden_size, args.num_attention_heads * self.head_dim, bias=False)
-        self.k_proj = nn.Linear(args.hidden_size, self.num_key_value_heads * self.head_dim, bias=False)
-        self.v_proj = nn.Linear(args.hidden_size, self.num_key_value_heads * self.head_dim, bias=False)
+        self.use_mla = args.use_mla
+        self.mla_kv_proj = nn.Linear(args.hidden_size, args.mla_kv_dim, bias=False) if self.use_mla else None # MLA KV压缩
+        self.mla_q_proj = nn.Linear(args.hidden_size, args.mla_q_dim, bias=False) if self.use_mla else None # MLA Q压缩
+        self.q_proj = nn.Linear(args.hidden_size if self.mla_q_proj is None else args.mla_q_dim, args.num_attention_heads * self.head_dim, bias=False)
+        self.k_proj = nn.Linear(args.hidden_size if self.mla_kv_proj is None else args.mla_kv_dim, self.num_key_value_heads * self.head_dim, bias=False)
+        self.v_proj = nn.Linear(args.hidden_size if self.mla_kv_proj is None else args.mla_kv_dim, self.num_key_value_heads * self.head_dim, bias=False)
+
+        if self.use_mla:
+            # Decoupled RoPE mappings (解决MLA历史相对位置失效机制)
+            self.rope_dim = args.mla_rope_dim if args.mla_rope_dim > 0 else self.head_dim
+            self.q_rope_proj = nn.Linear(args.hidden_size, args.num_attention_heads * self.rope_dim, bias=False)
+            self.k_rope_proj = nn.Linear(args.hidden_size, self.num_key_value_heads * self.rope_dim, bias=False)
+            
         self.o_proj = nn.Linear(args.num_attention_heads * self.head_dim, args.hidden_size, bias=False)
         self.attn_dropout = nn.Dropout(args.dropout)
         self.resid_dropout = nn.Dropout(args.dropout)
@@ -173,19 +189,66 @@ class Attention(nn.Module):
                 use_cache=False,
                 attention_mask: Optional[torch.Tensor] = None):
         bsz, seq_len, _ = x.shape
-        xq, xk, xv = self.q_proj(x), self.k_proj(x), self.v_proj(x)
-        xq = xq.view(bsz, seq_len, self.n_local_heads, self.head_dim)
-        xk = xk.view(bsz, seq_len, self.n_local_kv_heads, self.head_dim)
-        xv = xv.view(bsz, seq_len, self.n_local_kv_heads, self.head_dim)
+        
+        # MLA投影
+        if self.use_mla:
+            cq = self.mla_q_proj(x)
+        if self.mla_kv_proj:
+            ckv = self.mla_kv_proj(x)        
+        
+        # 恢复维度并切分头 (获取未经过 RoPE 的基础 Q, K, V)
+        xq = self.q_proj(cq if self.use_mla else x).view(bsz, seq_len, self.n_local_heads, self.head_dim)
+        xk = self.k_proj(ckv if self.use_mla else x).view(bsz, seq_len, self.n_local_kv_heads, self.head_dim)
+        xv = self.v_proj(ckv if self.use_mla else x).view(bsz, seq_len, self.n_local_kv_heads, self.head_dim)
 
         cos, sin = position_embeddings
-        xq, xk = apply_rotary_pos_emb(xq, xk, cos, sin)
 
-        # kv_cache实现
-        if past_key_value is not None:
-            xk = torch.cat([past_key_value[0], xk], dim=1)
-            xv = torch.cat([past_key_value[1], xv], dim=1)
-        past_kv = (xk, xv) if use_cache else None
+        if self.use_mla:
+            # === Decoupled RoPE (解决 MLA 历史维度相对位置失效) ===
+            # 直接从原始输入 x 投影专门用于位置编码的 q_pe 和 k_pe
+            q_pe = self.q_rope_proj(x).view(bsz, seq_len, self.n_local_heads, self.rope_dim)
+            k_pe = self.k_rope_proj(x).view(bsz, seq_len, self.n_local_kv_heads, self.rope_dim)
+            
+            # KV Cache 更新
+            if past_key_value is not None:
+                past_ckv, past_k_pe = past_key_value
+                bsz_p, past_seq_len, _ = past_ckv.shape
+                
+                # 从纯净压缩态还原历史的 k 和 v
+                past_xk = self.k_proj(past_ckv).view(bsz_p, past_seq_len, self.n_local_kv_heads, self.head_dim)
+                past_xv = self.v_proj(past_ckv).view(bsz_p, past_seq_len, self.n_local_kv_heads, self.head_dim)
+                
+                # 对当前的打当前长度的 RoPE
+                q_pe = apply_rotary_pos_emb(q_pe, cos, sin)
+                k_pe = apply_rotary_pos_emb(k_pe, cos, sin)
+
+                xk = torch.cat([past_xk, xk], dim=1)
+                xv = torch.cat([past_xv, xv], dim=1)
+                k_pe = torch.cat([past_k_pe, k_pe], dim=1)
+                
+                # 必须缓存位置编码 k_pe。因为它由 x(hidden_size) 投影而来，无法从压缩潜在向量 ckv 重构
+                past_kv = (torch.cat([past_ckv, ckv], dim=1).detach(), k_pe.detach()) if use_cache else None
+            else:
+                q_pe = apply_rotary_pos_emb(q_pe, cos, sin)
+                k_pe = apply_rotary_pos_emb(k_pe, cos, sin)
+                past_kv = (ckv.detach(), k_pe.detach()) if use_cache else None
+                
+            # 将基础部分(nope)和位置编码部分(pe)拼接
+            xq = torch.cat([xq, q_pe], dim=-1)
+            xk = torch.cat([xk, k_pe], dim=-1)
+            qk_dim = self.head_dim + self.rope_dim
+        else:
+            # === 常规注意力的 RoPE 机制 ===
+            xq = apply_rotary_pos_emb(xq, cos, sin)
+            xk = apply_rotary_pos_emb(xk, cos, sin)
+            qk_dim = self.head_dim
+            
+            if past_key_value is not None:
+                xk = torch.cat([past_key_value[0], xk], dim=1)
+                xv = torch.cat([past_key_value[1], xv], dim=1)
+                past_kv = (xk.detach(), xv.detach()) if use_cache else None
+            else:
+                past_kv = (xk.detach(), xv.detach()) if use_cache else None
 
         xq, xk, xv = (
             xq.transpose(1, 2),
@@ -196,7 +259,7 @@ class Attention(nn.Module):
         if self.flash and (seq_len > 1) and (past_key_value is None) and (attention_mask is None or torch.all(attention_mask == 1)):
             output = F.scaled_dot_product_attention(xq, xk, xv, dropout_p=self.dropout if self.training else 0.0, is_causal=True)
         else:
-            scores = (xq @ xk.transpose(-2, -1)) / math.sqrt(self.head_dim)
+            scores = (xq @ xk.transpose(-2, -1)) / math.sqrt(qk_dim)
             scores[:, :, :, -seq_len:] += torch.triu(torch.full((seq_len, seq_len), float("-inf"), device=scores.device), diagonal=1)
 
             if attention_mask is not None:
@@ -382,8 +445,14 @@ class MiniMindModel(nn.Module):
         self.dropout = nn.Dropout(config.dropout)
         self.layers = nn.ModuleList([MiniMindBlock(l, config) for l in range(self.num_hidden_layers)])
         self.norm = RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
-
-        freqs_cos, freqs_sin = precompute_freqs_cis(dim=config.hidden_size // config.num_attention_heads,
+        
+        self.use_mla = config.use_mla
+        
+        if config.use_mla:
+            rope_dim = config.mla_rope_dim if config.mla_rope_dim > 0 else config.hidden_size // config.num_attention_heads
+        else:
+            rope_dim = config.hidden_size // config.num_attention_heads
+        freqs_cos, freqs_sin = precompute_freqs_cis(dim=rope_dim,
                                                     end=config.max_position_embeddings, rope_base=config.rope_theta,
                                                     rope_scaling=config.rope_scaling)
         self.register_buffer("freqs_cos", freqs_cos, persistent=False)
