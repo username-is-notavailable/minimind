@@ -95,6 +95,10 @@ if __name__ == "__main__":
     parser.add_argument("--use_wandb", action="store_true", help="是否使用wandb")
     parser.add_argument("--wandb_project", type=str, default="MiniMind-Full-SFT", help="wandb项目名")
     parser.add_argument("--use_compile", default=0, type=int, choices=[0, 1], help="是否使用torch.compile加速（0=否，1=是）")
+    parser.add_argument("--use_mla", default=0, type=int, choices=[0, 1], help="是否使用MLA（0=否，1=是）")
+    parser.add_argument("--mla_kv_dim", type=int, default=128, help="MLA中KV的维度")
+    parser.add_argument("--mla_q_dim", type=int, default=256, help="MLA中Q的维度")
+    parser.add_argument("--mla_rope_dim", type=int, default=128, help="MLA中RoPE的维度")
     args = parser.parse_args()
 
     # ========== 1. 初始化环境和随机种子 ==========
