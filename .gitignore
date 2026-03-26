@@ -5,6 +5,8 @@ docs-minimind/
 *cache*
 *.log
 checkpoints/
+eval_results/
+benchmark/results/
 
 # 数据集文件（体积过大，不纳入版本控制）
 dataset/*.jsonl

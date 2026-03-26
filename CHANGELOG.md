@@ -250,10 +250,111 @@ python convert_model.py --weight full_sft --hidden_size 768 --num_hidden_layers 
 
 ---
 
+## 5. 新增量化评估脚本 `eval_benchmark.py`
+
+### 5.1 背景
+
+原始仓库缺乏量化的模型评测手段，`eval_llm.py` 仅做交互式文本生成，训练脚本无 validation loop。无法量化对比不同模型变体（如 GQA vs MLA）的能力差异。
+
+### 5.2 评估维度
+
+| 任务代号 | 评估维度 | 指标 | 方法 |
+|---|---|---|---|
+| `ppl` | 语言建模能力 | Perplexity (PPL) | 在 SFT 数据 held-out 集上计算交叉熵 |
+| `mcq` | 知识与推理 | 准确率 (%) | 20 道中文选择题，概率法取 A/B/C/D 的 logits |
+| `gen` | 生成质量 | 综合评分 (0-100) | 关键词命中率 + 重复度检测 + 格式规范性 |
+| `eff` | 推理效率 | tokens/s, 峰值显存 | 多种输入长度下的推理速度和显存 |
+
+### 5.3 使用方式
+
+```bash
+# 全面评估
+python eval_benchmark.py --weight full_sft --tasks all
+
+# MLA 模型评估
+python eval_benchmark.py --weight full_sft --use_mla 1 --tasks all
+
+# 仅 PPL
+python eval_benchmark.py --weight full_sft --tasks ppl
+
+# 指定评估数据和样本数
+python eval_benchmark.py --weight full_sft --eval_data ../dataset/sft_mini_512.jsonl --eval_samples 1000
+```
+
+### 5.4 结果保存
+
+- 评估结果自动保存到 `eval_results/` 目录（JSON 格式）
+- 生成详情（含完整回答文本）单独保存为 `*_generations.json`
+
+### 5.5 改动文件
+
+| 文件 | 类型 |
+|---|---|
+| `eval_benchmark.py` | **新增** |
+| `.gitignore` | 已包含 `eval_results/` 忽略（通过 `out` 规则） |
+
+---
+
+## 6. 训练可视化工具替换：SwanLab → WandB
+
+将原始仓库使用的 SwanLab（`import swanlab as wandb`）替换为原生 Weights & Biases。
+
+### 改动文件
+
+| 文件 | 改动 |
+|---|---|
+| 9 个训练脚本 | `import swanlab as wandb` → `import wandb` |
+| `train_pretrain.py` | 额外删除硬编码的 `wandb.login(key=...)` |
+| `trainer_utils.py` | `wandb.get_run()`（swanlab API）→ `wandb.run`（原生 wandb API） |
+
+---
+
+## 7. 完整 Benchmark 评测框架
+
+### 7.1 背景
+
+原始仓库缺乏系统化的量化评测，`eval_benchmark.py` 只是简单合并脚本。本次构建独立的 `benchmark/` 目录，使用 HuggingFace 开源评测数据集，按训练阶段设计不同的评测方案。
+
+### 7.2 新增文件
+
+| 文件 | 说明 |
+|---|---|
+| `benchmark/README.md` | 评测框架完整说明文档 |
+| `benchmark/run_all.py` | 一键运行所有评测 |
+| `benchmark/eval_pretrain.py` | PPL 评测（pretrain/SFT 阶段） |
+| `benchmark/eval_ceval.py` | C-Eval 52 科中文选择题评测（HuggingFace 数据源） |
+| `benchmark/eval_generation.py` | 15 prompt × 5 能力维度的生成质量自动评分 |
+| `benchmark/eval_efficiency.py` | 推理速度 / 显存峰值 / 多输入长度测试 |
+
+### 7.3 评测设计
+
+| 维度 | 数据来源 | 指标 | 适用阶段 |
+|---|---|---|---|
+| 语言建模 | held-out 训练数据 | PPL ↓ | Pretrain, SFT |
+| 知识推理 | `ceval/ceval-exam`（52科，HuggingFace） | 准确率 ↑ | SFT, DPO |
+| 生成质量 | 15 个固定 prompt | 自动评分 (0-100) ↑ | SFT, DPO, RLHF |
+| 推理效率 | 合成输入（多种长度） | tokens/s, 显存 MB | 所有阶段 |
+
+### 7.4 使用方式
+
+```bash
+cd benchmark/
+python run_all.py --weight full_sft              # GQA 全面评测
+python run_all.py --weight full_sft --use_mla 1   # MLA 全面评测
+python run_all.py --weight pretrain --pretrain_mode  # 预训练模型仅 PPL
+```
+
+详见 `benchmark/README.md`。
+
+---
+
 ## 后续计划
 
 - [ ] MLA 消融实验：对比 MLA 与标准 GQA 在 MiniMind2-Small (26M) 上的训练效果和推理效率
 - [ ] KV Cache 显存节省量化测试
 - [x] ~~将 MLA 支持扩展到 `eval_llm.py`~~（已完成）
 - [x] ~~改进 `convert_model.py` 支持 MLA 和 CLI 参数~~（已完成）
+- [x] ~~新增量化评估脚本 `eval_benchmark.py`~~（已完成）
+- [x] ~~SwanLab → WandB 替换~~（已完成）
+- [x] ~~构建完整 benchmark 评测框架~~（已完成）
 - [ ] 将 MLA 支持扩展到 `train_distillation.py`
