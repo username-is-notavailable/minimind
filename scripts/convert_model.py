@@ -12,8 +12,8 @@ from model.model_minimind import MiniMindConfig, MiniMindForCausalLM
 warnings.filterwarnings('ignore', category=UserWarning)
 
 
-# MoE模型需使用此函数转换
-def convert_torch2transformers_minimind(torch_path, transformers_path, dtype=torch.float16):
+# MoE/MLA模型需使用此函数转换（自定义架构，加载时需 trust_remote_code=True）
+def convert_torch2transformers_minimind(torch_path, transformers_path, lm_config=None, dtype=torch.float16):
     MiniMindConfig.register_for_auto_class()
     MiniMindForCausalLM.register_for_auto_class("AutoModelForCausalLM")
     lm_model = MiniMindForCausalLM(lm_config)
@@ -32,8 +32,8 @@ def convert_torch2transformers_minimind(torch_path, transformers_path, dtype=tor
     print(f"模型已保存为 Transformers-MiniMind 格式: {transformers_path}")
 
 
-# LlamaForCausalLM结构兼容第三方生态
-def convert_torch2transformers_llama(torch_path, transformers_path, dtype=torch.float16):
+# LlamaForCausalLM结构兼容第三方生态（仅适用于标准GQA模型，不支持MLA/MoE）
+def convert_torch2transformers_llama(torch_path, transformers_path, lm_config=None, dtype=torch.float16):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     state_dict = torch.load(torch_path, map_location=device)
     llama_config = LlamaConfig(
@@ -69,9 +69,49 @@ def convert_transformers2torch(transformers_path, torch_path):
 
 
 if __name__ == '__main__':
-    lm_config = MiniMindConfig(hidden_size=512, num_hidden_layers=8, max_seq_len=8192, use_moe=False)
-    torch_path = f"../out/full_sft_{lm_config.hidden_size}{'_moe' if lm_config.use_moe else ''}.pth"
-    transformers_path = '../MiniMind2-Small'
-    convert_torch2transformers_llama(torch_path, transformers_path)
-    # # convert transformers to torch model
-    # convert_transformers2torch(transformers_path, torch_path)
+    import argparse
+
+    parser = argparse.ArgumentParser(description="MiniMind 模型格式转换工具")
+    parser.add_argument('--hidden_size', default=512, type=int, help="隐藏层维度（512=Small, 640=MoE, 768=Base）")
+    parser.add_argument('--num_hidden_layers', default=8, type=int, help="隐藏层数量（Small/MoE=8, Base=16）")
+    parser.add_argument('--use_moe', default=0, type=int, choices=[0, 1], help="是否为MoE模型")
+    parser.add_argument('--use_mla', default=0, type=int, choices=[0, 1], help="是否为MLA模型")
+    parser.add_argument('--mla_kv_dim', type=int, default=128, help="MLA中KV的维度")
+    parser.add_argument('--mla_q_dim', type=int, default=256, help="MLA中Q的维度")
+    parser.add_argument('--mla_rope_dim', type=int, default=128, help="MLA中RoPE的维度")
+    parser.add_argument('--weight', default='full_sft', type=str, help="权重名称前缀（pretrain, full_sft, dpo 等）")
+    parser.add_argument('--input_dir', default='../out', type=str, help="输入权重目录")
+    parser.add_argument('--output_dir', default=None, type=str, help="输出目录（默认自动生成）")
+    parser.add_argument('--direction', default='t2t', choices=['t2t', 't2torch'], help="转换方向：t2t=torch→transformers, t2torch=transformers→torch")
+    args = parser.parse_args()
+
+    lm_config = MiniMindConfig(
+        hidden_size=args.hidden_size,
+        num_hidden_layers=args.num_hidden_layers,
+        use_moe=bool(args.use_moe),
+        use_mla=bool(args.use_mla),
+        mla_kv_dim=args.mla_kv_dim,
+        mla_q_dim=args.mla_q_dim,
+        mla_rope_dim=args.mla_rope_dim,
+    )
+
+    moe_suffix = '_moe' if lm_config.use_moe else ''
+    torch_path = f"{args.input_dir}/{args.weight}_{lm_config.hidden_size}{moe_suffix}.pth"
+
+    if args.output_dir is None:
+        if lm_config.use_mla:
+            args.output_dir = f'../MiniMind2-Small-MLA'
+        elif lm_config.use_moe:
+            args.output_dir = f'../MiniMind2-MoE'
+        else:
+            args.output_dir = f'../MiniMind2-Small'
+
+    if args.direction == 't2torch':
+        convert_transformers2torch(args.output_dir, torch_path)
+    else:
+        if lm_config.use_mla or lm_config.use_moe:
+            # MLA 和 MoE 模型使用 MiniMind 原生格式（自定义架构，需 trust_remote_code）
+            convert_torch2transformers_minimind(torch_path, args.output_dir, lm_config=lm_config)
+        else:
+            # 标准 GQA 模型可转为 Llama 格式（兼容第三方生态）
+            convert_torch2transformers_llama(torch_path, args.output_dir, lm_config=lm_config)

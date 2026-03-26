@@ -4,3 +4,10 @@ website/
 docs-minimind/
 *cache*
 *.log
+checkpoints/
+
+# 数据集文件（体积过大，不纳入版本控制）
+dataset/*.jsonl
+!dataset/lm_dataset.py
+!dataset/__init__.py
+!dataset/dataset.md
