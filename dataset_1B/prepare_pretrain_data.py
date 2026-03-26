@@ -64,8 +64,8 @@ DATA_SOURCES = {
     },
     'chinese_wiki': {
         'name': '中文百科',
-        'hf_repo': 'wikipedia',
-        'hf_config': '20220301.zh',
+        'hf_repo': 'wikimedia/wikipedia',
+        'hf_config': '20231101.zh',
         'hf_split': 'train',
         'text_field': 'text',
         'max_samples': 0,  # 0 = 全部
@@ -76,7 +76,7 @@ DATA_SOURCES = {
         'name': '中文文学',
         'hf_repo': 'CASIA-LM/ChineseWebText',
         'hf_config': None,
-        'hf_split': 'train',
+        'hf_split': 'test',
         'text_field': 'text',
         'max_samples': 1_000_000,
         'lang': 'zh',
@@ -94,8 +94,8 @@ DATA_SOURCES = {
     },
     'english_wiki': {
         'name': '英文百科',
-        'hf_repo': 'wikipedia',
-        'hf_config': '20220301.en',
+        'hf_repo': 'wikimedia/wikipedia',
+        'hf_config': '20231101.en',
         'hf_split': 'train',
         'text_field': 'text',
         'max_samples': 500_000,
@@ -104,10 +104,10 @@ DATA_SOURCES = {
     },
     'code': {
         'name': '代码(Python)',
-        'hf_repo': 'bigcode/starcoderdata',
-        'hf_config': 'python',
+        'hf_repo': 'iamtarun/python_code_instructions_18k_alpaca',
+        'hf_config': None,
         'hf_split': 'train',
-        'text_field': 'content',
+        'text_field': 'output',
         'max_samples': 500_000,
         'lang': 'code',
         'category': '代码',
@@ -233,7 +233,7 @@ def download_and_process_source(source_key, source_config, output_file, test_mod
 
     name = source_config['name']
     max_samples = 100 if test_mode else source_config['max_samples']
-    offset = source_config.get('offset', 0)
+    offset = 0 if test_mode else source_config.get('offset', 0)
     lang = source_config['lang']
 
     print(f"\n{'─' * 50}")
@@ -269,6 +269,15 @@ def download_and_process_source(source_key, source_config, output_file, test_mod
                 # 提取文本
                 text_field = source_config['text_field']
                 raw_text = item.get(text_field, '')
+
+                # 特殊处理：ChineseWebText 的 text 字段是字符串化的列表
+                if isinstance(raw_text, str) and raw_text.startswith("['") and raw_text.endswith("']"):
+                    try:
+                        import ast
+                        parsed = ast.literal_eval(raw_text)
+                        raw_text = parsed[0] if isinstance(parsed, list) and parsed else raw_text
+                    except:
+                        raw_text = raw_text[2:-2]  # 粗暴去掉 [' 和 ']
 
                 # 清洗
                 if lang == 'code':
