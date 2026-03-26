@@ -7,9 +7,11 @@ docs-minimind/
 checkpoints/
 eval_results/
 benchmark/results/
-
+wandb/
 # 数据集文件（体积过大，不纳入版本控制）
 dataset/*.jsonl
+dataset_1B/*.jsonl
+dataset_1B/data_stats.json
 !dataset/lm_dataset.py
 !dataset/__init__.py
 !dataset/dataset.md

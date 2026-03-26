@@ -442,6 +442,20 @@ Day 3 — 1B 扩展实验 (需先准备数据):
 | SkyPile | `Skywork/SkyPile-150B` | ~150B tokens | 中文网页（取前 10GB 即可） |
 | Chinese-Web-Text | `CASIA-LM/ChineseWebText` | ~50B tokens | 高质量中文网络文本 |
 
+**推荐数据配比**（以 10B tokens 为目标）：
+
+| 数据类型 | 占比 | Tokens (估) | 来源 |
+|---|---|---|---|
+| 中文网页文本 | 45% | ~4.5B | WanJuan-CC + SkyPile |
+| 百科/知识类 | 15% | ~1.5B | Wikipedia 中文 + 现有 pretrain_hq |
+| 书籍/文学 | 15% | ~1.5B | Chinese-Web-Text 筛选 |
+| 对话/问答 | 10% | ~1.0B | 现有 sft_t2t_mini |
+| 代码 | 5% | ~0.5B | StarCoder 中文子集（受限于 6400 词表编码效率） |
+| 新闻/时事 | 5% | ~0.5B | WanJuan-CC 新闻子集 |
+| 学术/专业 | 5% | ~0.5B | Chinese-Web-Text 筛选 |
+
+> 注：若使用新的 32K 分词器（见下文 6.1.2），代码占比可适当提高到 10%
+
 **数据准备流程**：
 
 ```bash
@@ -467,6 +481,33 @@ cd ../dataset && ln -sf pretrain_1b.jsonl pretrain_hq.jsonl
 
 > 注意：下载大规模数据可能需要较长时间，建议提前准备。
 
+#### 6.1.2 训练 1B 专用分词器（推荐）
+
+原始 6400 词表是为 26M 模型设计的。1B 模型中 embed 占比仅 1.3%，词表大小不再是瓶颈。使用 32K 词表可显著提升编码效率（同样 tokens 覆盖约 1.7 倍文本）。
+
+| | 6400 词表 | 32000 词表 |
+|---|---|---|
+| embed 占比 (1B) | 1.3% | 6.6% |
+| 中文编码效率 | ~1.6 字符/token | ~2.5-3.0 字符/token |
+| 512 tokens 覆盖 | ~820 字符 | ~1400 字符 |
+
+**分词器应在 1B 的预训练数据上训练**（词表要反映实际数据分布）：
+
+```bash
+cd minimind/trainer
+
+# 在 1B 预训练数据上训练 32K 词表
+python train_tokenizer_1b.py \
+    --data_path ../dataset/pretrain_1b.jsonl \
+    --vocab_size 32000 \
+    --max_lines 200000 \
+    --output_dir ../model_1b_tokenizer
+```
+
+训练完成后会自动评估编码效率（新旧对比）和编解码一致性。
+
+> **注意**：使用新分词器训练的 1B 模型与 6400 词表的 26M 模型**不直接可比**（PPL 因分词方式不同而无法对比）。如需公平消融对比 MLA，应在同一分词器下对比 GQA vs MLA。
+
 ### 6.2 模型配置
 
 **推荐的 1B 配置**（参考 Llama 架构比例）：
@@ -477,7 +518,7 @@ cd ../dataset && ln -sf pretrain_1b.jsonl pretrain_hq.jsonl
 | `num_hidden_layers` | 22 | |
 | `num_attention_heads` | 16 | |
 | `num_key_value_heads` | 4 | GQA 分组 |
-| `vocab_size` | 6400 | 保持不变 |
+| `vocab_size` | 6400 或 32000 | 6400=兼容 26M 对比；32000=推荐（需先训练分词器） |
 | **总参数量** | **~988M** | |
 | fp16 显存 | ~1.8GB | |
 | 训练显存 | ~18GB | 单卡 A100 即可 |

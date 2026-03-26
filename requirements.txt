@@ -1,31 +1,43 @@
-datasets==3.6.0
-datasketch==1.6.4
-Flask==3.0.3
-Flask_Cors==4.0.0
-jieba==0.42.1
-jsonlines==4.0.0
-marshmallow==3.22.0
-matplotlib==3.10.0
-ngrok==1.4.0
-nltk==3.8
-numpy==1.26.4
-openai==1.59.6
-peft==0.7.1
-psutil==5.9.8
-pydantic==2.11.5
-rich==13.7.1
-scikit_learn==1.5.1
-sentence_transformers==2.3.1
-simhash==2.1.2
-tiktoken==0.10.0
-transformers==4.57.1
-jinja2==3.1.2
-jsonlines==4.0.0
-trl==0.13.0
-ujson==5.1.0
-wandb==0.18.3
-streamlit==1.50.0
-einops==0.8.1
-swanlab==0.6.8
-torch==2.6.0
+# ============================================================
+# MiniMind 依赖配置
+# 安装: pip install -r requirements.txt
+# ============================================================
+
+# === 核心依赖 ===
+torch>=2.6.0
+transformers>=4.45.0
+datasets>=3.0.0              # HuggingFace 数据集（benchmark C-Eval 评测）
+huggingface_hub>=0.20.0      # 模型/数据下载和上传
+
+# === 训练可视化 ===
+wandb>=0.18.0                # 训练曲线记录
+
+# === 分词器 ===
+jinja2>=3.1.2                # chat_template 渲染
+tiktoken>=0.10.0             # tokenizer 训练参考
+
+# === 推理服务 ===
+fastapi>=0.110.0             # OpenAI 兼容 API 服务
+uvicorn>=0.29.0              # ASGI 服务器
+openai>=1.10.0               # API 客户端测试
+
+# === Web 前端 ===
+streamlit>=1.35.0            # Web 聊天界面
+
+# === 数据处理 ===
+jsonlines>=4.0.0
+numpy>=1.26.0
+ujson>=5.1.0
+jieba>=0.42.1                # 中文分词（tokenizer 训练）
+
+# === 工具库 ===
+rich>=13.7.0                 # 美化终端输出
+psutil>=5.9.0                # 系统资源监控
+einops>=0.8.0                # 张量操作
+
+# === 可选：LoRA/PEFT ===
+# peft>=0.7.1                # 如需使用第三方 peft 封装（项目已内置 LoRA 实现，非必须）
+
+# === 可选：TRL ===
+# trl>=0.13.0                # 如需使用第三方 trl 封装进行 RLHF
 torchvision==0.21.0
