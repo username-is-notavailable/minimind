@@ -30,6 +30,36 @@
 
 ---
 
+## 模型规格速查表
+
+通过 `--hidden_size` 和 `--num_hidden_layers` 控制模型参数量，所有脚本统一：
+
+| 模型名称 | 参数量 | `--hidden_size` | `--num_hidden_layers` | 权重文件名 | 说明 |
+|---|---|---|---|---|---|
+| MiniMind2-Small | **26M** | `512`（默认） | `8`（默认） | `*_512.pth` | 不传参数即为此配置 |
+| MiniMind2-Base | **104M** | `768` | `16` | `*_768.pth` | |
+| MiniMind2-1B | **~988M** | `2048` | `22` | `*_2048.pth` | 需补充预训练数据 |
+
+**原则**：训练时用什么参数，后续加载/评估/转换时必须用完全相同的参数。
+
+MLA 模型额外需要（以 26M 为例）：
+```
+--use_mla 1 --mla_kv_dim 128 --mla_q_dim 256 --mla_rope_dim 128
+```
+
+1B 模型的 MLA 维度按比例放大：
+```
+--use_mla 1 --mla_kv_dim 512 --mla_q_dim 1024 --mla_rope_dim 256
+```
+
+**脚本运行目录约定**：
+- 训练脚本：在 `minimind/trainer/` 下运行（数据路径以 `../dataset/` 开头）
+- eval_llm.py：在 `minimind/` 项目根目录运行
+- benchmark 脚本：在 `minimind/benchmark/` 下运行
+- convert_model.py：在 `minimind/scripts/` 下运行
+
+---
+
 ## 训练可视化配置（WandB）
 
 > 已将原始仓库的 SwanLab 替换为原生 [Weights & Biases (wandb)](https://wandb.ai/)。
@@ -134,7 +164,7 @@ torchrun --nproc_per_node 4 train_full_sft.py --use_wandb --wandb_project "MiniM
 ### 步骤 1.3 — 评估
 
 ```bash
-cd ..
+cd minimind  # 回到项目根目录
 python eval_llm.py --weight full_sft --show_speed 1
 ```
 
@@ -171,7 +201,7 @@ cp out/full_sft_512.pth out/baseline/
 ### 步骤 2.1 — 预训练
 
 ```bash
-cd trainer
+cd minimind/trainer  # 确保在 trainer 目录
 torchrun --nproc_per_node 4 train_pretrain.py \
     --use_mla 1 --mla_kv_dim 128 --mla_q_dim 256 --mla_rope_dim 128 \
     --use_wandb --wandb_project "MiniMind-Pretrain-MLA"
@@ -191,7 +221,7 @@ torchrun --nproc_per_node 4 train_full_sft.py \
 ### 步骤 2.3 — 评估
 
 ```bash
-cd ..
+cd minimind  # 回到项目根目录
 python eval_llm.py --weight full_sft --use_mla 1 --show_speed 1
 ```
 
@@ -218,13 +248,13 @@ cp out/full_sft_512.pth out/mla/
 训练完成后，对两组模型分别运行：
 
 ```bash
-cd minimind
+cd minimind/benchmark  # 在 benchmark 目录下运行
 
 # GQA Baseline 全面评估
-python eval_benchmark.py --weight full_sft --save_dir out/baseline --tasks all
+python run_all.py --weight full_sft --save_dir out/baseline
 
 # MLA 全面评估
-python eval_benchmark.py --weight full_sft --save_dir out/mla --use_mla 1 --tasks all
+python run_all.py --weight full_sft --save_dir out/mla --use_mla 1
 ```
 
 评估脚本自动输出 4 类量化指标：
@@ -318,7 +348,7 @@ torchrun --nproc_per_node 4 train_grpo.py [--use_mla 1 ...] --use_wandb
 ### 5.1 转换
 
 ```bash
-cd scripts
+cd minimind/scripts  # 在 scripts 目录下运行
 
 # GQA Baseline → Llama 格式（兼容 llama.cpp/vllm/ollama）
 python convert_model.py --weight full_sft --input_dir ../out/baseline --output_dir ../MiniMind2-Small-GQA
@@ -478,6 +508,7 @@ torchrun --nproc_per_node 4 train_full_sft.py \
 **步骤 6.3.3 — 备份 1B GQA 权重**
 
 ```bash
+cd minimind  # 回到项目根目录
 mkdir -p out/1b_baseline
 cp out/pretrain_2048.pth out/1b_baseline/
 cp out/full_sft_2048.pth out/1b_baseline/
@@ -486,6 +517,7 @@ cp out/full_sft_2048.pth out/1b_baseline/
 **步骤 6.3.4 — 1B MLA 预训练**
 
 ```bash
+cd minimind/trainer  # 确保在 trainer 目录
 torchrun --nproc_per_node 4 train_pretrain.py \
     --hidden_size 2048 --num_hidden_layers 22 \
     --use_mla 1 --mla_kv_dim 512 --mla_q_dim 1024 --mla_rope_dim 256 \
@@ -509,6 +541,7 @@ torchrun --nproc_per_node 4 train_full_sft.py \
 **步骤 6.3.6 — 备份 1B MLA 权重**
 
 ```bash
+cd minimind  # 回到项目根目录
 mkdir -p out/1b_mla
 cp out/pretrain_2048.pth out/1b_mla/
 cp out/full_sft_2048.pth out/1b_mla/
@@ -517,7 +550,7 @@ cp out/full_sft_2048.pth out/1b_mla/
 ### 6.4 评估
 
 ```bash
-cd benchmark/
+cd minimind/benchmark  # 在 benchmark 目录下运行
 
 # 1B GQA 全面评测
 python run_all.py --weight full_sft --save_dir out/1b_baseline \

@@ -348,13 +348,23 @@ python run_all.py --weight pretrain --pretrain_mode  # 预训练模型仅 PPL
 
 ---
 
+## 8. Bug 修复：`train_full_sft.py` MLA 参数未传递
+
+`train_full_sft.py` 虽然定义了 `--use_mla` 等 argparse 参数，但在创建 `MiniMindConfig` 时**未将其传入**，导致 SFT 阶段开启 MLA 无效。
+
+**修复**：在 `MiniMindConfig(...)` 调用中补充 `use_mla`, `mla_kv_dim`, `mla_q_dim`, `mla_rope_dim` 参数传递。
+
+---
+
 ## 后续计划
 
 - [ ] MLA 消融实验：对比 MLA 与标准 GQA 在 MiniMind2-Small (26M) 上的训练效果和推理效率
+- [ ] 1B 模型扩展实验（需先补充预训练数据）
 - [ ] KV Cache 显存节省量化测试
 - [x] ~~将 MLA 支持扩展到 `eval_llm.py`~~（已完成）
 - [x] ~~改进 `convert_model.py` 支持 MLA 和 CLI 参数~~（已完成）
 - [x] ~~新增量化评估脚本 `eval_benchmark.py`~~（已完成）
 - [x] ~~SwanLab → WandB 替换~~（已完成）
 - [x] ~~构建完整 benchmark 评测框架~~（已完成）
+- [x] ~~修复 `train_full_sft.py` MLA 参数传递 bug~~（已完成）
 - [ ] 将 MLA 支持扩展到 `train_distillation.py`
