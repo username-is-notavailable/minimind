@@ -236,55 +236,65 @@ ln -sf rlaif.jsonl rlaif-mini.jsonl
 
 现有数据约 0.9B tokens，训练 1B 模型会严重过拟合（仅为 Chinchilla 最优量的 4.5%）。需要将预训练数据扩充到 **5-10B tokens**。
 
-**推荐数据源**（HuggingFace 开源中文语料）：
+数据准备脚本已在 `dataset_1B/` 目录下提供，包含自动下载、清洗、合并和打乱的完整流程。
 
-| 数据集 | HuggingFace ID | 规模 | 说明 |
-|---|---|---|---|
-| WanJuan-CC | `opendatalab/WanJuan-CC` | ~100B tokens | 清洗后的中文网页数据（取子集即可） |
-| SkyPile | `Skywork/SkyPile-150B` | ~150B tokens | 中文网页（取前 10GB 即可） |
-| Chinese-Web-Text | `CASIA-LM/ChineseWebText` | ~50B tokens | 高质量中文网络文本 |
+**数据配比**（10B tokens 目标，中文 ~75%，英文 ~20%，代码 ~5%）：
 
-**推荐数据配比**（以 10B tokens 为目标）：
+| 类别 | 语言 | 占比 | 采样条数 | HuggingFace 数据源 |
+|---|---|---|---|---|
+| 中文网页 | 中文 | 35% | 3,500,000 | `Skywork/SkyPile-150B` |
+| 中文百科/知识 | 中文 | 15% | 现有+wiki | 现有 pretrain_hq + `wikimedia/wikipedia` (zh) |
+| 中文对话 | 中文 | 10% | 现有全部 | 现有 sft_t2t_mini（自动转为 pretrain 格式） |
+| 中文文学 | 中文 | 10% | 1,000,000 | `CASIA-LM/ChineseWebText` |
+| 英文网页 | 英文 | 10% | 1,000,000 | `allenai/c4` (en) |
+| 英文百科 | 英文 | 5% | 500,000 | `wikimedia/wikipedia` (en) |
+| 代码 | 混合 | 5% | 500,000 | `iamtarun/python_code_instructions_18k_alpaca` |
+| 英文学术 | 英文 | 5% | 500,000 | `open-web-math/open-web-math` |
+| 中文新闻/专业 | 中文 | 5% | 500,000 | `Skywork/SkyPile-150B`（偏移子集，避免重复） |
 
-| 数据类型 | 占比 | Tokens (估) | 来源 |
-|---|---|---|---|
-| 中文网页文本 | 45% | ~4.5B | WanJuan-CC + SkyPile |
-| 百科/知识类 | 15% | ~1.5B | Wikipedia 中文 + 现有 pretrain_hq |
-| 书籍/文学 | 15% | ~1.5B | Chinese-Web-Text 筛选 |
-| 对话/问答 | 10% | ~1.0B | 现有 sft_t2t_mini |
-| 代码 | 5% | ~0.5B | StarCoder 中文子集 |
-| 新闻/时事 | 5% | ~0.5B | WanJuan-CC 新闻子集 |
-| 学术/专业 | 5% | ~0.5B | Chinese-Web-Text 筛选 |
-
-**下载与合并流程**：
+**运行方式**：
 
 ```bash
-cd minimind
+cd minimind/dataset_1B
 
-# 1. 下载额外数据（以 WanJuan-CC 为例，取子集）
-python -c "
-from datasets import load_dataset
-import json, os
+# 完整下载（耗时较长，建议后台运行）
+nohup python prepare_pretrain_data.py > prepare.log 2>&1 &
 
-os.makedirs('./dataset', exist_ok=True)
-ds = load_dataset('opendatalab/WanJuan-CC', split='train', streaming=True)
+# 快速测试（每个数据源仅 100 条，验证流程是否正常）
+python prepare_pretrain_data.py --test_mode
 
-with open('./dataset/pretrain_extra.jsonl', 'w') as f:
-    for i, item in enumerate(ds):
-        if i >= 5_000_000:  # 取 500 万条
-            break
-        f.write(json.dumps({'text': item['content']}, ensure_ascii=False) + '\n')
-print(f'Downloaded {i+1} items')
-"
+# 仅下载指定数据源
+python prepare_pretrain_data.py --sources chinese_web,english_web,local
 
-# 2. 合并为 1B 预训练数据
-cat ./dataset/pretrain_hq.jsonl ./dataset/pretrain_extra.jsonl > ./dataset/pretrain_1b.jsonl
-
-# 3. 查看数据量
-wc -l ./dataset/pretrain_1b.jsonl
+# 查看进度
+tail -f prepare.log
 ```
 
-> 注意：下载大规模数据可能需要较长时间，建议提前准备。数据格式必须与原始预训练数据一致（每行一个 `{"text": "..."}` JSON 对象）。
+脚本自动完成以下工作：
+1. 从 HuggingFace streaming 下载各数据源
+2. 文本清洗（长度过滤、语言过滤、重复行检测、乱码过滤）
+3. 合并本地已有数据（pretrain_hq.jsonl + sft_t2t_mini.jsonl 自动转预训练格式）
+4. 全局随机打乱
+5. 采样 20 万条用于分词器训练
+
+**输出文件**：
+
+| 文件 | 说明 | 用途 |
+|---|---|---|
+| `dataset_1B/pretrain_1b.jsonl` | 合并打乱后的预训练数据 | 模型预训练 |
+| `dataset_1B/tokenizer_train.jsonl` | 均匀采样的子集（20 万条） | 分词器训练 |
+| `dataset_1B/data_stats.json` | 各数据源条数、字符数统计 | 记录参考 |
+
+**数据就绪后创建软链接**（让 1B 训练脚本能找到数据）：
+
+```bash
+cd minimind/dataset
+ln -sf ../dataset_1B/pretrain_1b.jsonl pretrain_hq.jsonl
+```
+
+> 注意：此软链接会覆盖原本指向 `pretrain_t2t.jsonl` 的链接。如需切回 26M 训练数据，重新执行 `ln -sf pretrain_t2t.jsonl pretrain_hq.jsonl` 即可。
+
+详见 `dataset_1B/README.md`。
 
 ### 2.5 1B 专用分词器训练（可选）
 
@@ -296,10 +306,12 @@ wc -l ./dataset/pretrain_1b.jsonl
 | 中文编码效率 | ~1.6 字符/token | ~2.5-3.0 字符/token |
 | 512 tokens 覆盖 | ~820 字符 | ~1400 字符 |
 
+`prepare_pretrain_data.py` 已自动生成分词器训练用采样文件 `dataset_1B/tokenizer_train.jsonl`，直接使用即可：
+
 ```bash
 cd minimind/trainer
 python train_tokenizer_1b.py \
-    --data_path ../dataset/pretrain_1b.jsonl \
+    --data_path ../dataset_1B/tokenizer_train.jsonl \
     --vocab_size 32000 \
     --max_lines 200000 \
     --output_dir ../model_1b_tokenizer
@@ -667,7 +679,7 @@ python eval_llm.py --weight grpo --show_speed 1
 | 算力 | 8×A100-80GB 绰绰有余（单卡即可放下 1B 训练） |
 | 代码 | 无需修改，通过 CLI 参数调整 |
 | 训练时间 | 4×A100 约 2-3h |
-| **数据量** | **⚠️ 现有 0.9B tokens 严重不足，需先完成阶段二 2.4 节的数据准备** |
+| **数据量** | **⚠️ 现有 0.9B tokens 严重不足，需先运行 `dataset_1B/prepare_pretrain_data.py` 准备数据（见 2.4 节）** |
 
 ### 7.2 1B 模型配置
 
@@ -695,10 +707,10 @@ MLA 维度按 hidden_size 比例放大的经验公式：
 conda activate pre
 cd minimind/trainer
 
-# 预训练
+# 预训练（确保已运行 prepare_pretrain_data.py 并创建软链接，见 2.4 节）
 torchrun --nproc_per_node 4 train_pretrain.py \
     --hidden_size 2048 --num_hidden_layers 22 \
-    --data_path ../dataset/pretrain_1b.jsonl \
+    --data_path ../dataset_1B/pretrain_1b.jsonl \
     --max_seq_len 512 --batch_size 8 \
     --use_wandb --wandb_project "MiniMind-Pretrain-1B-GQA"
 
@@ -723,7 +735,7 @@ cd minimind/trainer
 torchrun --nproc_per_node 4 train_pretrain.py \
     --hidden_size 2048 --num_hidden_layers 22 \
     --use_mla 1 --mla_kv_dim 512 --mla_q_dim 1024 --mla_rope_dim 256 \
-    --data_path ../dataset/pretrain_1b.jsonl \
+    --data_path ../dataset_1B/pretrain_1b.jsonl \
     --max_seq_len 512 --batch_size 8 \
     --use_wandb --wandb_project "MiniMind-Pretrain-1B-MLA"
 
@@ -874,7 +886,7 @@ Day 2 — 后训练与发布:
   阶段八  模型转换 + HuggingFace 上传
 
 Day 3 — 1B 扩展实验:
-  阶段二  补充 1B 预训练数据（如未完成）
+  阶段二  运行 dataset_1B/prepare_pretrain_data.py 准备数据（如未完成）
   阶段七  1B GQA Pretrain + SFT (~2-3h)
   阶段七  1B MLA Pretrain + SFT (~2-3h)
   阶段七  1B 评测 + 跨规模消融分析
@@ -892,7 +904,7 @@ Day 3 — 1B 扩展实验:
 3. **wandb**：如需记录训练曲线，确保已登录（`wandb login`）
 4. **Reward Model**：GRPO/PPO 需要 InternLM2-1.8B-Reward（约 3.6GB），必须放在 minimind 同级目录
 5. **MLA 与 Llama 不兼容**：MLA 模型只能通过 MiniMind 原生格式上传 HuggingFace，无法转为 Llama 格式
-6. **1B 数据量**：现有 0.9B tokens 训练 1B 模型会严重过拟合，务必先补充数据至 5B+ tokens
+6. **1B 数据量**：现有 0.9B tokens 训练 1B 模型会严重过拟合，务必先运行 `dataset_1B/prepare_pretrain_data.py` 补充数据至 5B+ tokens
 7. **1B MLA 维度**：需按 hidden_size 比例放大（kv_dim≈d/4, q_dim≈d/2, rope_dim≈d/8），过小会损失表达能力
 8. **1B 权重文件名**：`*_2048.pth`（因 hidden_size=2048），与 26M 的 `*_512.pth` 不冲突
 
