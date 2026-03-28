@@ -743,17 +743,15 @@ python eval_llm.py --weight grpo --show_speed 1
 
 ---
 
-## 阶段七：0.5B 模型扩展实验（未执行）
-
-> **状态：未执行。** 以下为计划内容，保留供后续实验参考。
+## 阶段七：0.5B 模型扩展实验
 
 ### 7.1 可行性分析
 
 | 维度 | 结论 |
 |---|---|
-| 算力 | 4×A100-80GB 绰绰有余（单卡即可放下 0.5B 训练） |
+| 算力 | 4×A100-80GB，每卡占用 ~79GB（96%利用率） |
 | 代码 | 无需修改，通过 CLI 参数调整 |
-| 训练时间 | 4×A100 预训练约 2 天，SFT 约 3-15h |
+| 训练时间 | 4×A100 预训练约 35h（~1.5 天），SFT 约 3-15h |
 | **数据量** | 现有 ~13.9B tokens（32K 词表）已超过 Chinchilla 最优量（~10B tokens），无需额外扩充 |
 
 ### 7.2 0.5B 模型配置
@@ -769,19 +767,19 @@ python eval_llm.py --weight grpo --show_speed 1
 | `mla_q_dim` | — | **768** | hidden_size / 2 |
 | `mla_rope_dim` | — | **192** | hidden_size / 8 |
 | 总参数量 | ~545M | ~545M+ | |
-| 训练显存 | ~12GB | ~12GB | 单卡 A100 即可 |
+| 训练显存 | ~79GB | ~79GB | 每卡 A100-80GB（batch_size=64） |
 
 MLA 维度按 hidden_size 比例放大的经验公式：
 - `kv_dim = hidden_size / 4`
 - `q_dim = hidden_size / 2`
 - `rope_dim = hidden_size / 8`
 
-### 7.2.1 训练前：分词器训练
+### 7.2.1 训练前：分词器训练（已完成）
 
 ```bash
 cd minimind/trainer
 
-# 训练 32K 词表分词器（~30 分钟）
+# 训练 32K 词表分词器（~10 分钟）
 python train_tokenizer_05b.py \
     --data_path ../dataset_1B/tokenizer_train.jsonl \
     --vocab_size 32000 \
@@ -789,30 +787,33 @@ python train_tokenizer_05b.py \
     --output_dir ../model_05b_tokenizer
 ```
 
-### 7.3 0.5B GQA 预训练 + SFT
+### 7.3 0.5B GQA 预训练 + SFT（已验证参数）
 
 ```bash
 conda activate minimind
 cd minimind/trainer
 
-# 预训练（~2 天，4×A100）
+# 预训练（~35h，4×A100-80GB，每卡 ~79GB）
 torchrun --nproc_per_node 4 train_pretrain.py \
     --hidden_size 1536 --num_hidden_layers 20 \
+    --vocab_size 32000 \
     --data_path ../dataset_1B/pretrain_1b.jsonl \
     --tokenizer_path ../model_05b_tokenizer \
-    --max_seq_len 512 --batch_size 16 \
-    --accumulation_steps 8 \
+    --max_seq_len 512 --batch_size 64 \
+    --accumulation_steps 2 \
     --learning_rate 3e-4 \
     --epochs 1 \
     --dtype bfloat16 \
+    --save_interval 2000 \
     --use_wandb --wandb_project "MiniMind-Pretrain-0.5B-GQA"
 
 # SFT（~3-15h，取决于数据集）
 torchrun --nproc_per_node 4 train_full_sft.py \
     --hidden_size 1536 --num_hidden_layers 20 \
+    --vocab_size 32000 \
     --data_path ../dataset/sft_t2t.jsonl \
     --tokenizer_path ../model_05b_tokenizer \
-    --max_seq_len 512 --batch_size 16 \
+    --max_seq_len 512 --batch_size 64 \
     --from_weight pretrain \
     --epochs 2 \
     --learning_rate 5e-6 \
@@ -834,23 +835,26 @@ cd minimind/trainer
 # 预训练
 torchrun --nproc_per_node 4 train_pretrain.py \
     --hidden_size 1536 --num_hidden_layers 20 \
+    --vocab_size 32000 \
     --use_mla 1 --mla_kv_dim 384 --mla_q_dim 768 --mla_rope_dim 192 \
     --data_path ../dataset_1B/pretrain_1b.jsonl \
     --tokenizer_path ../model_05b_tokenizer \
-    --max_seq_len 512 --batch_size 16 \
-    --accumulation_steps 8 \
+    --max_seq_len 512 --batch_size 64 \
+    --accumulation_steps 2 \
     --learning_rate 3e-4 \
     --epochs 1 \
     --dtype bfloat16 \
+    --save_interval 2000 \
     --use_wandb --wandb_project "MiniMind-Pretrain-0.5B-MLA"
 
 # SFT
 torchrun --nproc_per_node 4 train_full_sft.py \
     --hidden_size 1536 --num_hidden_layers 20 \
+    --vocab_size 32000 \
     --use_mla 1 --mla_kv_dim 384 --mla_q_dim 768 --mla_rope_dim 192 \
     --data_path ../dataset/sft_t2t.jsonl \
     --tokenizer_path ../model_05b_tokenizer \
-    --max_seq_len 512 --batch_size 16 \
+    --max_seq_len 512 --batch_size 64 \
     --from_weight pretrain \
     --epochs 2 \
     --learning_rate 5e-6 \
