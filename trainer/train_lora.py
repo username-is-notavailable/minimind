@@ -93,6 +93,7 @@ if __name__ == "__main__":
     parser.add_argument("--mla_kv_dim", type=int, default=128, help="MLA中KV的维度")
     parser.add_argument("--mla_q_dim", type=int, default=256, help="MLA中Q的维度")
     parser.add_argument("--mla_rope_dim", type=int, default=128, help="MLA中RoPE的维度")
+    parser.add_argument("--tokenizer_path", type=str, default="../model", help="分词器路径")
     args = parser.parse_args()
 
     # ========== 1. 初始化环境和随机种子 ==========
@@ -120,7 +121,7 @@ if __name__ == "__main__":
         wandb.init(project=args.wandb_project, name=wandb_run_name, id=wandb_id, resume=resume)
     
     # ========== 5. 定义模型、应用LoRA、冻结非LoRA参数 ==========
-    model, tokenizer = init_model(lm_config, args.from_weight, device=args.device)
+    model, tokenizer = init_model(lm_config, args.from_weight, tokenizer_path=args.tokenizer_path, device=args.device)
     if args.use_compile == 1:
         model = torch.compile(model)
         Logger('torch.compile enabled')

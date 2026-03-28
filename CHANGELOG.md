@@ -356,10 +356,98 @@ python run_all.py --weight pretrain --pretrain_mode  # 预训练模型仅 PPL
 
 ---
 
+## 9. 预训练数据准备（~21.7B tokens）
+
+### 9.1 背景
+
+为 0.5B/1B 等更大模型准备充足的预训练数据。原始仓库数据（~0.9B tokens）远远不足。
+
+### 9.2 新增文件
+
+| 文件 | 类型 | 说明 |
+|---|---|---|
+| `dataset_1B/prepare_pretrain_data.py` | **新增** | 基础数据采集（9 个数据源，本地+HuggingFace） |
+| `dataset_1B/expand_pretrain_data.py` | **新增** | 数据扩充至 20B tokens（追加 5 个数据源） |
+| `dataset_1B/README.md` | **更新** | 更新为实际数据统计和两阶段使用方式 |
+
+### 9.3 最终数据规模
+
+| 指标 | 值 |
+|---|---|
+| 总样本 | 32,349,742 |
+| 总字符 | 34.6B |
+| tokens（6400 词表） | **~21.7B** |
+| tokens（32K 词表） | **~13.9B** |
+| 文件大小 | 63.4 GB |
+
+### 9.4 数据来源
+
+- **中文**（~65%）：SkyPile-150B 中文网页（10.5M）、本地预训练（8.4M）、SFT 转预训练（5.8M）、中文 Wikipedia（1.3M）、中文补充（1.5M）
+- **英文**（~34%）：C4 英文网页（3M）、open-web-math 英文学术（1.3M）、英文 Wikipedia（500K）
+- **代码**（~1%）：Python 指令数据（18K）
+
+### 9.5 已知问题与解决
+
+- `CASIA-LM/ChineseWebText` text 字段为字符串化列表，清洗后全部跳过 → 通过增加 SkyPile 采样量补偿
+- 代码数据源 `iamtarun/python_code_instructions_18k_alpaca` 仅 1.8 万条 → 可后续替换为 `bigcode/starcoderdata`
+- SkyPile 高偏移量区间频繁超时 → 已通过 datasets 库内置 retry 自动恢复
+
+---
+
+## 后续计划
+---
+
+## 10. 全部训练脚本新增 `--tokenizer_path` CLI 参数
+
+### 10.1 背景
+
+原始仓库的 9 个训练脚本（pretrain、sft、dpo、grpo、ppo、spo、lora、reason、distillation）均未暴露 `--tokenizer_path` CLI 参数，但底层 `init_model()` 已支持该参数。这意味着使用 32K 新分词器训练 0.5B 模型时无法通过命令行指定分词器路径。
+
+### 10.2 修复内容
+
+在全部 9 个训练脚本中：
+1. 新增 `--tokenizer_path` argparse 参数（默认 `../model`，即原始 6400 词表）
+2. 修改所有 `init_model()` 调用传入 `tokenizer_path=args.tokenizer_path`
+
+### 10.3 改动文件
+
+| 文件 | init_model 调用数 |
+|---|---|
+| `trainer/train_pretrain.py` | 1 |
+| `trainer/train_full_sft.py` | 1 |
+| `trainer/train_dpo.py` | 2 |
+| `trainer/train_grpo.py` | 2 |
+| `trainer/train_lora.py` | 1 |
+| `trainer/train_ppo.py` | 3 |
+| `trainer/train_reason.py` | 1 |
+| `trainer/train_spo.py` | 2 |
+| `trainer/train_distillation.py` | 2 |
+
+### 10.4 使用方式
+
+```bash
+# 26M/104M 训练（使用默认 6400 词表，无需额外指定）
+python train_pretrain.py
+
+# 0.5B 训练（使用 32K 新分词器）
+python train_pretrain.py --tokenizer_path ../model_1b_tokenizer
+```
+
+---
+
+## 11. 其他修复
+
+- **conda 环境名统一**：EXPERIMENT_PLAN.md 中 `conda activate pre` 全部改为 `conda activate minimind`
+- **分词器脚本默认路径**：`train_tokenizer_1b.py` 的 `--data_path` 默认值从 `../dataset/pretrain_hq.jsonl` 改为 `../dataset_1B/tokenizer_train.jsonl`
+- **104M 训练参数补充**：EXPERIMENT_PLAN.md 新增 §3.7 记录 104M 实际验证过的训练命令和参数
+
+---
+
 ## 后续计划
 
 - [ ] MLA 消融实验：对比 MLA 与标准 GQA 在 MiniMind2-Small (26M) 上的训练效果和推理效率
-- [ ] 1B 模型扩展实验（需先补充预训练数据）
+- [ ] 0.5B 模型训练：hidden_size=1536, layers=20, vocab=32K, ~545M 参数
+- [ ] 0.5B 专用分词器：基于 `tokenizer_train.jsonl` 训练 32K 词表分词器
 - [ ] KV Cache 显存节省量化测试
 - [x] ~~将 MLA 支持扩展到 `eval_llm.py`~~（已完成）
 - [x] ~~改进 `convert_model.py` 支持 MLA 和 CLI 参数~~（已完成）
@@ -367,4 +455,7 @@ python run_all.py --weight pretrain --pretrain_mode  # 预训练模型仅 PPL
 - [x] ~~SwanLab → WandB 替换~~（已完成）
 - [x] ~~构建完整 benchmark 评测框架~~（已完成）
 - [x] ~~修复 `train_full_sft.py` MLA 参数传递 bug~~（已完成）
+- [x] ~~预训练数据准备（21.7B tokens）~~（已完成）
+- [x] ~~全部训练脚本新增 `--tokenizer_path` 参数~~（已完成）
+- [x] ~~conda 环境名统一、104M 训练参数记录~~（已完成）
 - [ ] 将 MLA 支持扩展到 `train_distillation.py`

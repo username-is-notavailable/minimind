@@ -162,6 +162,7 @@ if __name__ == "__main__":
     parser.add_argument("--use_wandb", action="store_true", help="是否使用wandb")
     parser.add_argument("--wandb_project", type=str, default="MiniMind-Distillation", help="wandb项目名")
     parser.add_argument("--use_compile", default=0, type=int, choices=[0, 1], help="是否使用torch.compile加速（0=否，1=是）")
+    parser.add_argument("--tokenizer_path", type=str, default="../model", help="分词器路径")
     args = parser.parse_args()
 
     # ========== 1. 初始化环境和随机种子 ==========
@@ -190,12 +191,12 @@ if __name__ == "__main__":
         wandb.init(project=args.wandb_project, name=wandb_run_name, id=wandb_id, resume=resume)
     
     # ========== 5. 定义学生和教师模型 ==========
-    model, tokenizer = init_model(lm_config_student, args.from_student_weight, device=args.device)
+    model, tokenizer = init_model(lm_config_student, args.from_student_weight, tokenizer_path=args.tokenizer_path, device=args.device)
     if args.use_compile == 1:
         model = torch.compile(model)
         Logger('torch.compile enabled')
     Logger(f'学生模型总参数量：{sum(p.numel() for p in model.parameters()) / 1e6:.3f} M')
-    teacher_model, _ = init_model(lm_config_teacher, args.from_teacher_weight, device=args.device)
+    teacher_model, _ = init_model(lm_config_teacher, args.from_teacher_weight, tokenizer_path=args.tokenizer_path, device=args.device)
     teacher_model.eval()
     teacher_model.requires_grad_(False)
     Logger(f'教师模型总参数量：{sum(p.numel() for p in teacher_model.parameters()) / 1e6:.3f} M')

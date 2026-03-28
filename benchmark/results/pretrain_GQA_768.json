@@ -1,0 +1,10 @@
+{
+  "perplexity": 29.1588,
+  "avg_loss": 3.372757,
+  "total_tokens": 200341,
+  "valid_samples": 500,
+  "data_path": "../dataset/pretrain_t2t.jsonl",
+  "weight": "pretrain",
+  "architecture": "GQA",
+  "hidden_size": 768
+}

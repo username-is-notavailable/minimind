@@ -54,7 +54,15 @@ class SFTDataset(Dataset):
         super().__init__()
         self.tokenizer = tokenizer
         self.max_length = max_length
-        self.samples = load_dataset('json', data_files=jsonl_path, split='train')
+        try:
+            self.samples = load_dataset('json', data_files=jsonl_path, split='train')
+        except Exception:
+            # Handle datasets with inconsistent conversation schemas (e.g. extra tools/tool_calls fields)
+            from datasets import Features, Value
+            features = Features({'conversations': [{'role': Value('string'), 'content': Value('string'),
+                                                    'reasoning_content': Value('string'),
+                                                    'tools': Value('string'), 'tool_calls': Value('string')}]})
+            self.samples = load_dataset('json', data_files=jsonl_path, split='train', features=features)
         self.bos_id = tokenizer(f'{tokenizer.bos_token}assistant\n', add_special_tokens=False).input_ids
         self.eos_id = tokenizer(f'{tokenizer.eos_token}\n', add_special_tokens=False).input_ids
 
@@ -64,8 +72,15 @@ class SFTDataset(Dataset):
     def create_chat_prompt(self, conversations):
         messages = conversations.copy()
         tools = conversations[0]["functions"] if (conversations and conversations[0]["role"] == "system" and conversations[0].get("functions")) else None
+        # 清理 tool_calls / tool 角色，避免 Jinja2 模板渲染错误
+        cleaned = []
+        for m in messages:
+            m2 = {k: v for k, v in m.items() if k not in ('tool_calls', 'function_call')}
+            if m2.get('role') == 'tool':
+                m2['role'] = 'user'
+            cleaned.append(m2)
         return self.tokenizer.apply_chat_template(
-            messages,
+            cleaned,
             tokenize=False,
             add_generation_prompt=False,
             tools=tools

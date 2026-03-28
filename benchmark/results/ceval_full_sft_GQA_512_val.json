@@ -1,0 +1,293 @@
+{
+  "weight": "full_sft",
+  "architecture": "GQA",
+  "hidden_size": 512,
+  "split": "val",
+  "overall_accuracy": 0.24,
+  "total_correct": 323,
+  "total_count": 1346,
+  "category_results": {
+    "其他": {
+      "correct": 122,
+      "total": 509,
+      "accuracy": 0.2397
+    },
+    "STEM": {
+      "correct": 76,
+      "total": 346,
+      "accuracy": 0.2197
+    },
+    "人文": {
+      "correct": 51,
+      "total": 210,
+      "accuracy": 0.2429
+    },
+    "社会科学": {
+      "correct": 82,
+      "total": 299,
+      "accuracy": 0.2742
+    }
+  },
+  "subject_results": {
+    "accountant": {
+      "correct": 9,
+      "total": 49,
+      "accuracy": 0.1837
+    },
+    "advanced_mathematics": {
+      "correct": 6,
+      "total": 19,
+      "accuracy": 0.3158
+    },
+    "art_studies": {
+      "correct": 14,
+      "total": 33,
+      "accuracy": 0.4242
+    },
+    "basic_medicine": {
+      "correct": 6,
+      "total": 19,
+      "accuracy": 0.3158
+    },
+    "business_administration": {
+      "correct": 11,
+      "total": 33,
+      "accuracy": 0.3333
+    },
+    "chinese_language_and_literature": {
+      "correct": 4,
+      "total": 23,
+      "accuracy": 0.1739
+    },
+    "civil_servant": {
+      "correct": 14,
+      "total": 47,
+      "accuracy": 0.2979
+    },
+    "clinical_medicine": {
+      "correct": 8,
+      "total": 22,
+      "accuracy": 0.3636
+    },
+    "college_chemistry": {
+      "correct": 6,
+      "total": 24,
+      "accuracy": 0.25
+    },
+    "college_economics": {
+      "correct": 16,
+      "total": 55,
+      "accuracy": 0.2909
+    },
+    "college_physics": {
+      "correct": 7,
+      "total": 19,
+      "accuracy": 0.3684
+    },
+    "college_programming": {
+      "correct": 8,
+      "total": 37,
+      "accuracy": 0.2162
+    },
+    "computer_architecture": {
+      "correct": 4,
+      "total": 21,
+      "accuracy": 0.1905
+    },
+    "computer_network": {
+      "correct": 2,
+      "total": 19,
+      "accuracy": 0.1053
+    },
+    "discrete_mathematics": {
+      "correct": 6,
+      "total": 16,
+      "accuracy": 0.375
+    },
+    "education_science": {
+      "correct": 7,
+      "total": 29,
+      "accuracy": 0.2414
+    },
+    "electrical_engineer": {
+      "correct": 9,
+      "total": 37,
+      "accuracy": 0.2432
+    },
+    "environmental_impact_assessment_engineer": {
+      "correct": 4,
+      "total": 31,
+      "accuracy": 0.129
+    },
+    "fire_engineer": {
+      "correct": 7,
+      "total": 31,
+      "accuracy": 0.2258
+    },
+    "high_school_biology": {
+      "correct": 7,
+      "total": 19,
+      "accuracy": 0.3684
+    },
+    "high_school_chemistry": {
+      "correct": 2,
+      "total": 19,
+      "accuracy": 0.1053
+    },
+    "high_school_chinese": {
+      "correct": 4,
+      "total": 19,
+      "accuracy": 0.2105
+    },
+    "high_school_geography": {
+      "correct": 7,
+      "total": 19,
+      "accuracy": 0.3684
+    },
+    "high_school_history": {
+      "correct": 4,
+      "total": 20,
+      "accuracy": 0.2
+    },
+    "high_school_mathematics": {
+      "correct": 4,
+      "total": 18,
+      "accuracy": 0.2222
+    },
+    "high_school_physics": {
+      "correct": 4,
+      "total": 19,
+      "accuracy": 0.2105
+    },
+    "high_school_politics": {
+      "correct": 4,
+      "total": 19,
+      "accuracy": 0.2105
+    },
+    "ideological_and_moral_cultivation": {
+      "correct": 5,
+      "total": 19,
+      "accuracy": 0.2632
+    },
+    "law": {
+      "correct": 5,
+      "total": 24,
+      "accuracy": 0.2083
+    },
+    "legal_professional": {
+      "correct": 2,
+      "total": 23,
+      "accuracy": 0.087
+    },
+    "logic": {
+      "correct": 4,
+      "total": 22,
+      "accuracy": 0.1818
+    },
+    "mao_zedong_thought": {
+      "correct": 9,
+      "total": 24,
+      "accuracy": 0.375
+    },
+    "marxism": {
+      "correct": 3,
+      "total": 19,
+      "accuracy": 0.1579
+    },
+    "metrology_engineer": {
+      "correct": 2,
+      "total": 24,
+      "accuracy": 0.0833
+    },
+    "middle_school_biology": {
+      "correct": 3,
+      "total": 21,
+      "accuracy": 0.1429
+    },
+    "middle_school_chemistry": {
+      "correct": 3,
+      "total": 20,
+      "accuracy": 0.15
+    },
+    "middle_school_geography": {
+      "correct": 2,
+      "total": 12,
+      "accuracy": 0.1667
+    },
+    "middle_school_history": {
+      "correct": 4,
+      "total": 22,
+      "accuracy": 0.1818
+    },
+    "middle_school_mathematics": {
+      "correct": 3,
+      "total": 19,
+      "accuracy": 0.1579
+    },
+    "middle_school_physics": {
+      "correct": 4,
+      "total": 19,
+      "accuracy": 0.2105
+    },
+    "middle_school_politics": {
+      "correct": 7,
+      "total": 21,
+      "accuracy": 0.3333
+    },
+    "modern_chinese_history": {
+      "correct": 4,
+      "total": 23,
+      "accuracy": 0.1739
+    },
+    "operating_system": {
+      "correct": 3,
+      "total": 19,
+      "accuracy": 0.1579
+    },
+    "physician": {
+      "correct": 18,
+      "total": 49,
+      "accuracy": 0.3673
+    },
+    "plant_protection": {
+      "correct": 7,
+      "total": 22,
+      "accuracy": 0.3182
+    },
+    "probability_and_statistics": {
+      "correct": 3,
+      "total": 18,
+      "accuracy": 0.1667
+    },
+    "professional_tour_guide": {
+      "correct": 8,
+      "total": 29,
+      "accuracy": 0.2759
+    },
+    "sports_science": {
+      "correct": 4,
+      "total": 19,
+      "accuracy": 0.2105
+    },
+    "tax_accountant": {
+      "correct": 9,
+      "total": 49,
+      "accuracy": 0.1837
+    },
+    "teacher_qualification": {
+      "correct": 11,
+      "total": 44,
+      "accuracy": 0.25
+    },
+    "urban_and_rural_planner": {
+      "correct": 11,
+      "total": 46,
+      "accuracy": 0.2391
+    },
+    "veterinary_medicine": {
+      "correct": 5,
+      "total": 23,
+      "accuracy": 0.2174
+    }
+  }
+}

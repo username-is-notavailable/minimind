@@ -149,6 +149,7 @@ if __name__ == "__main__":
     parser.add_argument("--mla_kv_dim", type=int, default=128, help="MLA中KV的维度")
     parser.add_argument("--mla_q_dim", type=int, default=256, help="MLA中Q的维度")
     parser.add_argument("--mla_rope_dim", type=int, default=128, help="MLA中RoPE的维度")
+    parser.add_argument("--tokenizer_path", type=str, default="../model", help="分词器路径")
     args = parser.parse_args()
 
     # ========== 1. 初始化环境和随机种子 ==========
@@ -176,13 +177,13 @@ if __name__ == "__main__":
         wandb.init(project=args.wandb_project, name=wandb_run_name, id=wandb_id, resume=resume)
     
     # ========== 5. 定义模型和参考模型 ==========
-    model, tokenizer = init_model(lm_config, args.from_weight, device=args.device)
+    model, tokenizer = init_model(lm_config, args.from_weight, tokenizer_path=args.tokenizer_path, device=args.device)
     if args.use_compile == 1:
         model = torch.compile(model)
         Logger('torch.compile enabled')
     Logger(f'策略模型总参数量：{sum(p.numel() for p in model.parameters()) / 1e6:.3f} M')
     # 初始化参考模型（ref_model冻结）
-    ref_model, _ = init_model(lm_config, args.from_weight, device=args.device)
+    ref_model, _ = init_model(lm_config, args.from_weight, tokenizer_path=args.tokenizer_path, device=args.device)
     ref_model.eval()
     ref_model.requires_grad_(False)
     Logger(f'参考模型总参数量：{sum(p.numel() for p in ref_model.parameters()) / 1e6:.3f} M')

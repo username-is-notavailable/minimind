@@ -2,7 +2,7 @@
 
 ## 实验目标
 
-在 MiniMind2-Small (26M) 和 MiniMind2-1B (~988M) 两个规模上，对比标准 GQA（Grouped Query Attention）与自定义 MLA（Multi-head Latent Attention）注意力机制的训练效果和推理效率差异。
+在 MiniMind2-Small (26M) 和 MiniMind2-0.5B (~545M) 两个规模上，对比标准 GQA（Grouped Query Attention）与自定义 MLA（Multi-head Latent Attention）注意力机制的训练效果和推理效率差异。
 
 实验覆盖完整的 LLM 训练流程：环境配置 → 数据准备 → 预训练 → SFT → RLHF/RLAIF → 量化评估 → 模型转换与发布。
 
@@ -23,7 +23,7 @@
 当前机器默认 Python 没有 torch，需使用 conda 环境：
 
 ```bash
-conda activate pre  # torch 2.8.0
+conda activate minimind  # torch 2.8.0
 ```
 
 安装项目依赖：
@@ -232,60 +232,70 @@ ln -sf rlaif.jsonl rlaif-mini.jsonl
 }
 ```
 
-### 2.4 1B 模型扩展数据准备
+### 2.4 大规模模型扩展数据准备
 
-现有数据约 0.9B tokens，训练 1B 模型会严重过拟合（仅为 Chinchilla 最优量的 4.5%）。需要将预训练数据扩充到 **5-10B tokens**。
+按 Chinchilla 最优比例（~20 tokens/参数），0.5B 模型需要约 10B tokens，1B 模型需要约 20B tokens。
 
-数据准备脚本已在 `dataset_1B/` 目录下提供，包含自动下载、清洗、合并和打乱的完整流程。
+数据通过两阶段准备，脚本均在 `dataset_1B/` 目录下：
 
-**数据配比**（10B tokens 目标，中文 ~75%，英文 ~20%，代码 ~5%）：
+1. **`prepare_pretrain_data.py`**（基础采集，~97 分钟）— 采集本地数据 + 9 个 HuggingFace 远程源
+2. **`expand_pretrain_data.py`**（扩充至 20B tokens，~184 分钟）— 追加本地完整 SFT 数据 + 4 个远程源继续采样
 
-| 类别 | 语言 | 占比 | 采样条数 | HuggingFace 数据源 |
+**最终数据规模**：
+
+| 指标 | 值 |
+|---|---|
+| 总样本数 | 32,349,742 |
+| 总字符数 | 34.6B |
+| 估算 tokens（6400 词表） | **~21.7B** ✅ |
+| 估算 tokens（32K 词表） | **~13.9B** |
+| 文件大小 | 63.4 GB |
+
+**数据来源明细**：
+
+| 类别 | 语言 | 条数 | 字符 | 数据源 |
 |---|---|---|---|---|
-| 中文网页 | 中文 | 35% | 3,500,000 | `Skywork/SkyPile-150B` |
-| 中文百科/知识 | 中文 | 15% | 现有+wiki | 现有 pretrain_hq + `wikimedia/wikipedia` (zh) |
-| 中文对话 | 中文 | 10% | 现有全部 | 现有 sft_t2t_mini（自动转为 pretrain 格式） |
-| 中文文学 | 中文 | 10% | 1,000,000 | `CASIA-LM/ChineseWebText` |
-| 英文网页 | 英文 | 10% | 1,000,000 | `allenai/c4` (en) |
-| 英文百科 | 英文 | 5% | 500,000 | `wikimedia/wikipedia` (en) |
-| 代码 | 混合 | 5% | 500,000 | `iamtarun/python_code_instructions_18k_alpaca` |
-| 英文学术 | 英文 | 5% | 500,000 | `open-web-math/open-web-math` |
-| 中文新闻/专业 | 中文 | 5% | 500,000 | `Skywork/SkyPile-150B`（偏移子集，避免重复） |
+| 中文网页 | 中文 | 10,500,000 | 10.55B | `Skywork/SkyPile-150B`（基础 3.5M + 扩充 7M） |
+| 中文对话(SFT转) | 中文 | 5,831,466 | 6.52B | 本地 sft_t2t + sft_t2t_mini（转预训练格式） |
+| 本地预训练 | 中文 | 8,429,917 | 3.24B | 现有 pretrain_hq（匠数科技） |
+| 中文百科 | 中文 | 1,270,195 | 901M | `wikimedia/wikipedia` (zh)（全量） |
+| 中文多样化 | 中文 | 1,000,000 | 1.02B | `Skywork/SkyPile-150B`（偏移 12M 不同区间） |
+| 中文新闻 | 中文 | 500,000 | 500M | `Skywork/SkyPile-150B`（偏移 5M） |
+| 英文网页 | 英文 | 3,000,000 | 5.67B | `allenai/c4` (en)（基础 1M + 扩充 2M） |
+| 英文学术 | 英文 | 1,300,000 | 4.73B | `open-web-math/open-web-math`（基础 500K + 扩充 800K） |
+| 英文百科 | 英文 | 500,000 | 1.50B | `wikimedia/wikipedia` (en) |
+| 代码 | 混合 | 17,764 | 8M | `iamtarun/python_code_instructions_18k_alpaca` |
+
+> **已知问题**：`CASIA-LM/ChineseWebText` 数据格式不兼容（text 字段为字符串化列表），采集 0 条。已通过增加 SkyPile 和 SFT 数据补偿。代码源数据集仅 1.8 万条，远小于目标，可后续替换为更大数据集。
 
 **运行方式**：
 
 ```bash
 cd minimind/dataset_1B
 
-# 完整下载（耗时较长，建议后台运行）
+# 第一步：基础采集（~97 分钟）
 nohup python prepare_pretrain_data.py > prepare.log 2>&1 &
 
-# 快速测试（每个数据源仅 100 条，验证流程是否正常）
-python prepare_pretrain_data.py --test_mode
+# 第二步：扩充至 20B tokens（~184 分钟）
+nohup python expand_pretrain_data.py > expand.log 2>&1 &
 
-# 仅下载指定数据源
-python prepare_pretrain_data.py --sources chinese_web,english_web,local
+# 快速测试
+python prepare_pretrain_data.py --test_mode
+python expand_pretrain_data.py --test_mode
 
 # 查看进度
-tail -f prepare.log
+tail -f prepare.log  # 或 expand.log
 ```
-
-脚本自动完成以下工作：
-1. 从 HuggingFace streaming 下载各数据源
-2. 文本清洗（长度过滤、语言过滤、重复行检测、乱码过滤）
-3. 合并本地已有数据（pretrain_hq.jsonl + sft_t2t_mini.jsonl 自动转预训练格式）
-4. 全局随机打乱
-5. 采样 20 万条用于分词器训练
 
 **输出文件**：
 
-| 文件 | 说明 | 用途 |
+| 文件 | 大小 | 说明 |
 |---|---|---|
-| `dataset_1B/pretrain_1b.jsonl` | 合并打乱后的预训练数据 | 模型预训练 |
-| `dataset_1B/tokenizer_train.jsonl` | 均匀采样的子集（20 万条） | 分词器训练 |
-| `dataset_1B/data_stats.json` | 各数据源条数、字符数统计 | 记录参考 |
+| `dataset_1B/pretrain_1b.jsonl` | 63.4 GB | 合并打乱后的预训练数据（32.3M 行） |
+| `dataset_1B/tokenizer_train.jsonl` | 401 MB | 均匀采样子集（20 万条），用于分词器训练 |
+| `dataset_1B/data_stats.json` | 3.4 KB | 各数据源条数、字符数统计 |
 
-**数据就绪后创建软链接**（让 1B 训练脚本能找到数据）：
+**数据就绪后创建软链接**（让训练脚本能找到数据）：
 
 ```bash
 cd minimind/dataset
@@ -296,13 +306,13 @@ ln -sf ../dataset_1B/pretrain_1b.jsonl pretrain_hq.jsonl
 
 详见 `dataset_1B/README.md`。
 
-### 2.5 1B 专用分词器训练（可选）
+### 2.5 大规模模型专用分词器训练
 
-原始 6400 词表为 26M 模型设计。1B 模型中 embedding 层仅占 1.3%，词表大小不再是瓶颈。使用 32K 词表可显著提升编码效率：
+原始 6400 词表为 26M 模型设计。0.5B 模型中 embedding 层占比不再是瓶颈。使用 32K 词表可显著提升编码效率：
 
 | | 6400 词表 | 32000 词表 |
 |---|---|---|
-| embed 占比 (1B) | 1.3% | 6.6% |
+| embed 占比 (0.5B) | 2.4% | 11.7% |
 | 中文编码效率 | ~1.6 字符/token | ~2.5-3.0 字符/token |
 | 512 tokens 覆盖 | ~820 字符 | ~1400 字符 |
 
@@ -317,7 +327,7 @@ python train_tokenizer_1b.py \
     --output_dir ../model_1b_tokenizer
 ```
 
-> **注意**：使用新分词器训练的 1B 模型与 6400 词表的 26M 模型 **PPL 不直接可比**。如需公平消融对比 MLA，应在同一分词器下对比 GQA vs MLA。
+> **注意**：使用新分词器训练的 0.5B 模型与 6400 词表的 26M 模型 **PPL 不直接可比**。如需公平消融对比 MLA，应在同一分词器下对比 GQA vs MLA。
 
 ### 2.6 Reward Model 下载（GRPO/PPO 阶段使用）
 
@@ -369,7 +379,7 @@ head -n 2 rlaif-mini.jsonl | python -m json.tool --no-ensure-ascii
 |---|---|---|---|---|
 | MiniMind2-Small | **26M** | `512`（默认） | `8`（默认） | `*_512.pth` |
 | MiniMind2-Base | **104M** | `768` | `16` | `*_768.pth` |
-| MiniMind2-1B | **~988M** | `2048` | `22` | `*_2048.pth` |
+| MiniMind2-0.5B | **~545M** | `1536` | `20` | `*_1536.pth` |
 
 **原则**：训练时用什么参数，后续加载/评估/转换时必须用完全相同的参数。
 
@@ -388,7 +398,7 @@ head -n 2 rlaif-mini.jsonl | python -m json.tool --no-ensure-ascii
 ### 3.3 预训练
 
 ```bash
-conda activate pre
+conda activate minimind
 cd minimind/trainer
 
 torchrun --nproc_per_node 4 train_pretrain.py \
@@ -452,9 +462,67 @@ cp out/full_sft_512.pth out/baseline/
 
 > **重要**：备份必须在阶段四开始前完成，否则 MLA 训练将覆盖同名文件。
 
+### 3.7 104M 模型训练（已验证）
+
+104M 模型使用 `hidden_size=768, num_hidden_layers=16`，以下参数经实际训练验证可行：
+
+**预训练**（4×A100，~6h，2 epochs × 16.6M 样本 ≈ 4.6B tokens）：
+
+```bash
+cd minimind/trainer
+
+torchrun --nproc_per_node 4 train_pretrain.py \
+    --hidden_size 768 --num_hidden_layers 16 \
+    --data_path ../dataset/pretrain_hq.jsonl \
+    --max_seq_len 340 --epochs 2 \
+    --batch_size 32 --accumulation_steps 8 \
+    --learning_rate 3e-4 --dtype bfloat16 \
+    --save_weight pretrain --save_interval 1000 \
+    --use_wandb --wandb_project "MiniMind-104M-Pretrain"
+```
+
+**SFT**（4×A100，~10h，完整 SFT 数据 5.1M 条 × 2 epochs）：
+
+```bash
+torchrun --nproc_per_node 4 train_full_sft.py \
+    --hidden_size 768 --num_hidden_layers 16 \
+    --data_path ../dataset/sft_t2t.jsonl \
+    --max_seq_len 512 --from_weight pretrain \
+    --epochs 2 --batch_size 64 --accumulation_steps 2 \
+    --learning_rate 5e-6 --dtype bfloat16 \
+    --save_weight full_sft --save_interval 2000 \
+    --use_wandb --wandb_project "MiniMind-104M-SFT-Full"
+```
+
+**与 26M 默认值的关键差异**：
+
+| 参数 | 26M 默认 | 104M 实际 | 说明 |
+|---|---|---|---|
+| `hidden_size` | 512 | **768** | 增大 1.5× |
+| `num_hidden_layers` | 8 | **16** | 翻倍 |
+| `learning_rate`（预训练） | 5e-4 | **3e-4** | 略微降低，更大模型需更保守 |
+| `epochs`（预训练） | 1 | **2** | 数据过两遍以补充 token 不足 |
+| SFT `data_path` | `sft_mini_512.jsonl` | **`sft_t2t.jsonl`** | 使用完整 14GB SFT 数据 |
+| SFT `batch_size` | 16 | **64** | A100 显存充足可增大 |
+| SFT `accumulation_steps` | 1 | **2** | 等效 batch 128 |
+| SFT `learning_rate` | 1e-6 | **5e-6** | 略提高以匹配更大有效 batch |
+| SFT `max_seq_len` | 340 | **512** | 覆盖更长文本 |
+
+**产出**：`out/pretrain_768.pth`（208MB）、`out/full_sft_768.pth`（208MB）
+
+**模型转换**（已验证）：
+
+```bash
+cd minimind/scripts
+python convert_model.py --weight pretrain --hidden_size 768 --num_hidden_layers 16
+python convert_model.py --weight full_sft --hidden_size 768 --num_hidden_layers 16
+```
+
 ---
 
-## 阶段四：26M 模型 MLA 训练
+## 阶段四：26M 模型 MLA 训练（未执行）
+
+> **状态：未执行。** 以下为计划内容，保留供后续实验参考。
 
 ### 4.1 MLA 模型配置
 
@@ -511,7 +579,10 @@ cp out/full_sft_512.pth out/mla/
 
 ---
 
-## 阶段五：26M 消融对比评测
+## 阶段五：26M GQA vs MLA 消融对比评测（未执行）
+
+> **状态：未执行。** MLA 训练尚未进行，以下为计划内容。
+> 已完成的 26M GQA 评测结果见「实验结果记录」章节。
 
 使用 `benchmark/` 目录下的评测框架，对阶段三和阶段四产出的两组模型进行系统化量化对比。
 
@@ -570,7 +641,9 @@ python run_all.py --weight full_sft --save_dir ../out/mla --use_mla 1
 
 ---
 
-## 阶段六：RLHF / RLAIF 后训练
+## 阶段六：RLHF / RLAIF 后训练（未执行）
+
+> **状态：未执行。** 以下为计划内容，保留供后续实验参考。
 
 基于阶段五中表现更好的模型变体（或两者均训练），继续后训练。
 
@@ -670,108 +743,148 @@ python eval_llm.py --weight grpo --show_speed 1
 
 ---
 
-## 阶段七：1B 模型扩展实验
+## 阶段七：0.5B 模型扩展实验（未执行）
+
+> **状态：未执行。** 以下为计划内容，保留供后续实验参考。
 
 ### 7.1 可行性分析
 
 | 维度 | 结论 |
 |---|---|
-| 算力 | 8×A100-80GB 绰绰有余（单卡即可放下 1B 训练） |
+| 算力 | 4×A100-80GB 绰绰有余（单卡即可放下 0.5B 训练） |
 | 代码 | 无需修改，通过 CLI 参数调整 |
-| 训练时间 | 4×A100 约 2-3h |
-| **数据量** | **⚠️ 现有 0.9B tokens 严重不足，需先运行 `dataset_1B/prepare_pretrain_data.py` 准备数据（见 2.4 节）** |
+| 训练时间 | 4×A100 预训练约 2 天，SFT 约 3-15h |
+| **数据量** | 现有 ~13.9B tokens（32K 词表）已超过 Chinchilla 最优量（~10B tokens），无需额外扩充 |
 
-### 7.2 1B 模型配置
+### 7.2 0.5B 模型配置
 
 | 参数 | GQA | MLA | 说明 |
 |---|---|---|---|
-| `hidden_size` | 2048 | 2048 | |
-| `num_hidden_layers` | 22 | 22 | |
-| `num_attention_heads` | 16 | 16 | |
-| `num_key_value_heads` | 4 | 4 | GQA 分组 |
-| `vocab_size` | 6400 | 6400 | 与 26M 保持一致以便对比 |
-| `mla_kv_dim` | — | **512** | hidden_size / 4 |
-| `mla_q_dim` | — | **1024** | hidden_size / 2 |
-| `mla_rope_dim` | — | **256** | hidden_size / 8 |
-| 总参数量 | ~988M | ~988M+ | |
-| 训练显存 | ~18GB | ~18GB | 单卡 A100 即可 |
+| `hidden_size` | 1536 | 1536 | |
+| `num_hidden_layers` | 20 | 20 | |
+| `num_attention_heads` | 8 | 8 | |
+| `num_key_value_heads` | 2 | 2 | GQA 分组 |
+| `vocab_size` | 32000 | 32000 | 32K 新分词器 |
+| `mla_kv_dim` | — | **384** | hidden_size / 4 |
+| `mla_q_dim` | — | **768** | hidden_size / 2 |
+| `mla_rope_dim` | — | **192** | hidden_size / 8 |
+| 总参数量 | ~545M | ~545M+ | |
+| 训练显存 | ~12GB | ~12GB | 单卡 A100 即可 |
 
 MLA 维度按 hidden_size 比例放大的经验公式：
 - `kv_dim = hidden_size / 4`
 - `q_dim = hidden_size / 2`
 - `rope_dim = hidden_size / 8`
 
-### 7.3 1B GQA 预训练 + SFT
+### 7.2.1 训练前：分词器训练
 
 ```bash
-conda activate pre
 cd minimind/trainer
 
-# 预训练（确保已运行 prepare_pretrain_data.py 并创建软链接，见 2.4 节）
-torchrun --nproc_per_node 4 train_pretrain.py \
-    --hidden_size 2048 --num_hidden_layers 22 \
-    --data_path ../dataset_1B/pretrain_1b.jsonl \
-    --max_seq_len 512 --batch_size 8 \
-    --use_wandb --wandb_project "MiniMind-Pretrain-1B-GQA"
+# 训练 32K 词表分词器（~30 分钟）
+python train_tokenizer_1b.py \
+    --data_path ../dataset_1B/tokenizer_train.jsonl \
+    --vocab_size 32000 \
+    --max_lines 200000 \
+    --output_dir ../model_1b_tokenizer
+```
 
-# SFT
+### 7.3 0.5B GQA 预训练 + SFT
+
+```bash
+conda activate minimind
+cd minimind/trainer
+
+# 预训练（~2 天，4×A100）
+torchrun --nproc_per_node 4 train_pretrain.py \
+    --hidden_size 1536 --num_hidden_layers 20 \
+    --data_path ../dataset_1B/pretrain_1b.jsonl \
+    --tokenizer_path ../model_1b_tokenizer \
+    --max_seq_len 512 --batch_size 16 \
+    --accumulation_steps 8 \
+    --learning_rate 3e-4 \
+    --epochs 1 \
+    --dtype bfloat16 \
+    --use_wandb --wandb_project "MiniMind-Pretrain-0.5B-GQA"
+
+# SFT（~3-15h，取决于数据集）
 torchrun --nproc_per_node 4 train_full_sft.py \
-    --hidden_size 2048 --num_hidden_layers 22 \
-    --use_wandb --wandb_project "MiniMind-SFT-1B-GQA"
+    --hidden_size 1536 --num_hidden_layers 20 \
+    --data_path ../dataset/sft_t2t.jsonl \
+    --tokenizer_path ../model_1b_tokenizer \
+    --max_seq_len 512 --batch_size 16 \
+    --from_weight pretrain \
+    --epochs 2 \
+    --learning_rate 5e-6 \
+    --dtype bfloat16 \
+    --use_wandb --wandb_project "MiniMind-SFT-0.5B-GQA"
 
 # 备份
 cd minimind
-mkdir -p out/1b_baseline
-cp out/pretrain_2048.pth out/1b_baseline/
-cp out/full_sft_2048.pth out/1b_baseline/
+mkdir -p out/05b_baseline
+cp out/pretrain_1536.pth out/05b_baseline/
+cp out/full_sft_1536.pth out/05b_baseline/
 ```
 
-### 7.4 1B MLA 预训练 + SFT
+### 7.4 0.5B MLA 预训练 + SFT
 
 ```bash
 cd minimind/trainer
 
 # 预训练
 torchrun --nproc_per_node 4 train_pretrain.py \
-    --hidden_size 2048 --num_hidden_layers 22 \
-    --use_mla 1 --mla_kv_dim 512 --mla_q_dim 1024 --mla_rope_dim 256 \
+    --hidden_size 1536 --num_hidden_layers 20 \
+    --use_mla 1 --mla_kv_dim 384 --mla_q_dim 768 --mla_rope_dim 192 \
     --data_path ../dataset_1B/pretrain_1b.jsonl \
-    --max_seq_len 512 --batch_size 8 \
-    --use_wandb --wandb_project "MiniMind-Pretrain-1B-MLA"
+    --tokenizer_path ../model_1b_tokenizer \
+    --max_seq_len 512 --batch_size 16 \
+    --accumulation_steps 8 \
+    --learning_rate 3e-4 \
+    --epochs 1 \
+    --dtype bfloat16 \
+    --use_wandb --wandb_project "MiniMind-Pretrain-0.5B-MLA"
 
 # SFT
 torchrun --nproc_per_node 4 train_full_sft.py \
-    --hidden_size 2048 --num_hidden_layers 22 \
-    --use_mla 1 --mla_kv_dim 512 --mla_q_dim 1024 --mla_rope_dim 256 \
-    --use_wandb --wandb_project "MiniMind-SFT-1B-MLA"
+    --hidden_size 1536 --num_hidden_layers 20 \
+    --use_mla 1 --mla_kv_dim 384 --mla_q_dim 768 --mla_rope_dim 192 \
+    --data_path ../dataset/sft_t2t.jsonl \
+    --tokenizer_path ../model_1b_tokenizer \
+    --max_seq_len 512 --batch_size 16 \
+    --from_weight pretrain \
+    --epochs 2 \
+    --learning_rate 5e-6 \
+    --dtype bfloat16 \
+    --use_wandb --wandb_project "MiniMind-SFT-0.5B-MLA"
 
 # 备份
 cd minimind
-mkdir -p out/1b_mla
-cp out/pretrain_2048.pth out/1b_mla/
-cp out/full_sft_2048.pth out/1b_mla/
+mkdir -p out/05b_mla
+cp out/pretrain_1536.pth out/05b_mla/
+cp out/full_sft_1536.pth out/05b_mla/
 ```
 
-### 7.5 1B 评测
+### 7.5 0.5B 评测
 
 ```bash
 cd minimind/benchmark
 
-# 1B GQA
-python run_all.py --weight full_sft --save_dir ../out/1b_baseline \
-    --hidden_size 2048 --num_hidden_layers 22
+# 0.5B GQA
+python run_all.py --weight full_sft --save_dir ../out/05b_baseline \
+    --hidden_size 1536 --num_hidden_layers 20
 
-# 1B MLA
-python run_all.py --weight full_sft --save_dir ../out/1b_mla \
-    --hidden_size 2048 --num_hidden_layers 22 \
-    --use_mla 1 --mla_kv_dim 512 --mla_q_dim 1024 --mla_rope_dim 256
+# 0.5B MLA
+python run_all.py --weight full_sft --save_dir ../out/05b_mla \
+    --hidden_size 1536 --num_hidden_layers 20 \
+    --use_mla 1 --mla_kv_dim 384 --mla_q_dim 768 --mla_rope_dim 192
 ```
 
 ### 7.6 跨规模消融对比
 
-| 指标 | 26M GQA | 26M MLA | 1B GQA | 1B MLA |
+| 指标 | 26M GQA | 26M MLA | 0.5B GQA | 0.5B MLA |
 |---|---|---|---|---|
-| 参数量 | 25.8M | ____M | ~988M | ____M |
+| 参数量 | 25.8M | ____M | ~545M | ____M |
+| 词表大小 | 6400 | 6400 | 32000 | 32000 |
 | PPL ↓ | ____ | ____ | ____ | ____ |
 | C-Eval 准确率 ↑ | ____ | ____ | ____ | ____ |
 | 生成评分 ↑ | ____ | ____ | ____ | ____ |
@@ -781,6 +894,8 @@ python run_all.py --weight full_sft --save_dir ../out/1b_mla \
 ---
 
 ## 阶段八：模型转换与发布
+
+> **状态：26M 和 104M GQA 模型已完成转换与上传。MLA / 0.5B 部分未执行。**
 
 ### 8.1 Torch → Transformers 格式转换
 
@@ -795,16 +910,16 @@ python convert_model.py --weight full_sft \
 python convert_model.py --weight full_sft --use_mla 1 \
     --input_dir ../out/mla --output_dir ../MiniMind2-Small-MLA
 
-# 1B GQA
+# 0.5B GQA
 python convert_model.py --weight full_sft \
-    --hidden_size 2048 --num_hidden_layers 22 \
-    --input_dir ../out/1b_baseline --output_dir ../MiniMind2-1B-GQA
+    --hidden_size 1536 --num_hidden_layers 20 \
+    --input_dir ../out/05b_baseline --output_dir ../MiniMind2-0.5B-GQA
 
-# 1B MLA
+# 0.5B MLA
 python convert_model.py --weight full_sft --use_mla 1 \
-    --hidden_size 2048 --num_hidden_layers 22 \
-    --mla_kv_dim 512 --mla_q_dim 1024 --mla_rope_dim 256 \
-    --input_dir ../out/1b_mla --output_dir ../MiniMind2-1B-MLA
+    --hidden_size 1536 --num_hidden_layers 20 \
+    --mla_kv_dim 384 --mla_q_dim 768 --mla_rope_dim 192 \
+    --input_dir ../out/05b_mla --output_dir ../MiniMind2-0.5B-MLA
 ```
 
 **两种格式说明**：
@@ -847,9 +962,15 @@ model = AutoModelForCausalLM.from_pretrained("your-username/MiniMind2-Small-MLA"
 - [x] `scripts/convert_model.py` 已支持 MLA 转换和 CLI 参数
 - [x] 数据文件名软链接就绪
 - [x] `.gitignore` 已忽略数据集和 checkpoints
-- [ ] WandB 账号已登录
-- [ ] 1B 扩展数据已下载（阶段七前置）
+- [x] WandB 账号已登录
+- [x] SFT 数据 tool_calls 字段兼容性修复（`lm_dataset.py`）
+- [x] 26M GQA Pretrain + SFT（seq340）完成
+- [x] 26M GQA Pretrain + SFT（seq512 消融）完成
+- [x] 104M GQA Pretrain + SFT 完成
+- [x] 全部已完成模型上传至 HuggingFace
+- [ ] 0.5B 扩展数据已下载（阶段七前置）
 - [ ] Reward Model 已下载（阶段六 GRPO/PPO 前置）
+- [ ] MLA 消融实验（阶段四）
 
 ---
 
@@ -885,12 +1006,12 @@ Day 2 — 后训练与发布:
   阶段六  DPO / GRPO / PPO 后训练
   阶段八  模型转换 + HuggingFace 上传
 
-Day 3 — 1B 扩展实验:
-  阶段二  运行 dataset_1B/prepare_pretrain_data.py 准备数据（如未完成）
-  阶段七  1B GQA Pretrain + SFT (~2-3h)
-  阶段七  1B MLA Pretrain + SFT (~2-3h)
-  阶段七  1B 评测 + 跨规模消融分析
-  阶段八  1B 模型转换 + 上传
+Day 3-5 — 0.5B 扩展实验:
+  阶段七  分词器训练 (~30min)
+  阶段七  0.5B GQA Pretrain (~2天) + SFT (~3-15h)
+  阶段七  0.5B MLA Pretrain (~2天) + SFT (~3-15h)
+  阶段七  0.5B 评测 + 跨规模消融分析
+  阶段八  0.5B 模型转换 + 上传
 ```
 
 > 以上时间基于 4×A100 估算。使用全部 8 卡可进一步缩短至约一半。
@@ -900,79 +1021,187 @@ Day 3 — 1B 扩展实验:
 ## 风险与注意事项
 
 1. **权重覆盖**：GQA 和 MLA 的输出文件名相同（`*_512.pth`），务必在训练 MLA 前完成 GQA 权重备份
-2. **Python 环境**：当前机器默认 Python 没有 torch，需使用 `conda activate pre`
+2. **Python 环境**：当前机器默认 Python 没有 torch，需使用 `conda activate minimind`
 3. **wandb**：如需记录训练曲线，确保已登录（`wandb login`）
 4. **Reward Model**：GRPO/PPO 需要 InternLM2-1.8B-Reward（约 3.6GB），必须放在 minimind 同级目录
 5. **MLA 与 Llama 不兼容**：MLA 模型只能通过 MiniMind 原生格式上传 HuggingFace，无法转为 Llama 格式
-6. **1B 数据量**：现有 0.9B tokens 训练 1B 模型会严重过拟合，务必先运行 `dataset_1B/prepare_pretrain_data.py` 补充数据至 5B+ tokens
-7. **1B MLA 维度**：需按 hidden_size 比例放大（kv_dim≈d/4, q_dim≈d/2, rope_dim≈d/8），过小会损失表达能力
-8. **1B 权重文件名**：`*_2048.pth`（因 hidden_size=2048），与 26M 的 `*_512.pth` 不冲突
+6. **0.5B 数据量**：现有 ~13.9B tokens（32K词表）已超过 Chinchilla 最优量（~10B tokens），无需额外扩充
+7. **0.5B MLA 维度**：需按 hidden_size 比例放大（kv_dim≈d/4, q_dim≈d/2, rope_dim≈d/8），过小会损失表达能力
+8. **0.5B 权重文件名**：`*_1536.pth`（因 hidden_size=1536），与 26M 的 `*_512.pth` 不冲突
 
 ---
 
 ## 实验结果记录
 
-### 26M 消融对比
+### 已完成的实验
 
-| 指标 | GQA Baseline | MLA |
-|---|---|---|
-| 总参数量 | ____M | ____M |
-| 注意力层参数量 | ____M | ____M |
-| 预训练最终 Loss | ____ | ____ |
-| SFT 最终 Loss | ____ | ____ |
-| 训练总时间 | ____min | ____min |
-| 显存峰值 (MB) | ____ | ____ |
-| **PPL** ↓ | ____ | ____ |
-| **C-Eval 准确率** ↑ | ____% | ____% |
-| **生成质量评分** ↑ | ____/100 | ____/100 |
-| 推理速度 (tokens/s) | ____ | ____ |
-| 推理显存峰值 (MB) | ____ | ____ |
-
-### 1B 消融对比
-
-| 指标 | GQA | MLA |
-|---|---|---|
-| 总参数量 | ____M | ____M |
-| 预训练最终 Loss | ____ | ____ |
-| SFT 最终 Loss | ____ | ____ |
-| PPL ↓ | ____ | ____ |
-| C-Eval 准确率 ↑ | ____% | ____% |
-| 生成质量评分 ↑ | ____/100 | ____/100 |
-| 推理速度 (tokens/s) | ____ | ____ |
-| 推理显存峰值 (MB) | ____ | ____ |
-
-### 对话质量对比
-
-> 种子固定 2026，使用 eval_llm.py 内置 8 个 prompt
-
-| Prompt | GQA Baseline | MLA |
-|---|---|---|
-| 1. 你有什么特长？ | （待填写） | （待填写） |
-| 2. 为什么天空是蓝色的 | （待填写） | （待填写） |
-| 3. 请用Python写一个计算斐波那契数列的函数 | （待填写） | （待填写） |
-| 4. 解释一下"光合作用"的基本过程 | （待填写） | （待填写） |
-| 5. 如果明天下雨，我应该如何出门 | （待填写） | （待填写） |
-| 6. 比较一下猫和狗作为宠物的优缺点 | （待填写） | （待填写） |
-| 7. 解释什么是机器学习 | （待填写） | （待填写） |
-| 8. 推荐一些中国的美食 | （待填写） | （待填写） |
-
-### 综合结论
-
-| 维度 | GQA Baseline | MLA | 结论 |
+| 实验 | 模型 | 状态 | HuggingFace |
 |---|---|---|---|
-| 参数效率 | ____ | ____ | |
-| 训练收敛速度 | ____ | ____ | |
-| 推理速度 | ____ | ____ | |
-| 显存占用 | ____ | ____ | |
-| 对话质量 | ____ | ____ | |
-| **总体结论** | | | |
+| 26M GQA Pretrain+SFT (seq340) | 25.8M | ✅ 已完成 | [leixinlin/MiniMind2-Small-GQA](https://huggingface.co/leixinlin/MiniMind2-Small-GQA) |
+| 26M GQA Pretrain+SFT (seq512) | 25.8M | ✅ 已完成 | [leixinlin/MiniMind2-Small-GQA-Seq512](https://huggingface.co/leixinlin/MiniMind2-Small-GQA-Seq512) |
+| 104M GQA Pretrain+SFT | 104.0M | ✅ 已完成 | [leixinlin/MiniMind2-Pretrain-104M](https://huggingface.co/leixinlin/MiniMind2-Pretrain-104M) / [leixinlin/MiniMind2-SFT-104M](https://huggingface.co/leixinlin/MiniMind2-SFT-104M) |
+| 26M MLA 消融 | — | ❌ 未执行 | — |
+| RLHF/RLAIF 后训练 | — | ❌ 未执行 | — |
+| 0.5B 扩展实验 | — | ❌ 未执行 | — |
 
-### Loss 曲线截图
+---
 
-> 从 WandB Dashboard 下载，放到 `images/` 目录
+### 26M GQA 训练结果
 
-| 阶段 | 截图 |
+#### 训练参数
+
+| 参数 | Pretrain (seq340) | SFT (seq340) | Pretrain (seq512) | SFT (seq512) |
+|---|---|---|---|---|
+| `data_path` | `pretrain_t2t.jsonl` (7.8GB) | `sft_t2t_mini.jsonl` (1.6GB) | `pretrain_t2t.jsonl` (7.8GB) | `sft_t2t_mini.jsonl` (1.6GB) |
+| `max_seq_len` | 340 | 340 | 512 | 512 |
+| `batch_size` | 256 | 128 | 128 | 64 |
+| `accumulation_steps` | 1 | 1 | 1 | 1 |
+| `learning_rate` | 5e-4 | 1e-6 | 5e-4 | 1e-6 |
+| `epochs` | 1 | 2 | 1 | 2 |
+| `dtype` | bfloat16 | bfloat16 | bfloat16 | bfloat16 |
+| GPU | 2×A100 | 2×A100 | 2×A100 | 2×A100 |
+
+#### 训练 Loss
+
+| 模型 | 最终 Pretrain Loss | 最终 SFT Loss |
+|---|---|---|
+| 26M seq340 | ~1.84 | 1.65 |
+| 26M seq512 | 1.84 | 1.66 |
+
+#### 消融对比：max_seq_len=340 vs 512
+
+**PPL（在 pretrain held-out 数据上评测）：**
+
+| 模型 | seq_len=340 | seq_len=512 | 变化 |
+|---|---|---|---|
+| Pretrain | 167.20 | **29.44** | ↓ 82.4% |
+| SFT | 170.37 | **32.41** | ↓ 81.0% |
+
+**C-Eval（52 科 val 集）：**
+
+| 类别 | seq_len=340 | seq_len=512 |
+|---|---|---|
+| STEM | 21.97% | 21.97% |
+| 社会科学 | 28.43% | 27.42% |
+| 人文 | 26.67% | 24.29% |
+| 其他 | 22.79% | 23.97% |
+| **总体** | **24.22%** | **24.00%** |
+
+**生成质量（15 prompt 自动评分）：**
+
+| 能力维度 | seq_len=340 | seq_len=512 |
+|---|---|---|
+| 事实问答 | 82.8 | 83.0 |
+| 科学解释 | 82.3 | 82.3 |
+| 逻辑推理 | 100.0 | 78.0 |
+| 代码生成 | 92.0 | 92.0 |
+| 创意写作 | 75.5 | 83.0 |
+| 自我认知 | 84.0 | 75.5 |
+| **总平均** | **85.4** | **82.4** |
+
+**推理效率：**
+
+| 指标 | seq_len=340 | seq_len=512 |
+|---|---|---|
+| 推理速度 | 89-92 tok/s | 92-95 tok/s |
+| 显存峰值 | 126-133 MB | 125-128 MB |
+
+**消融结论**：seq_len=512 的 PPL 大幅改善（167→29），因为模型能学到更完整的文本上下文。但 C-Eval 和生成质量评分差异不大，26M 模型的知识容量是硬瓶颈。
+
+---
+
+### 104M GQA 训练结果
+
+#### 训练参数
+
+| 参数 | Pretrain | SFT |
+|---|---|---|
+| `hidden_size` | 768 | 768 |
+| `num_hidden_layers` | 16 | 16 |
+| `data_path` | `pretrain_hq.jsonl` → `dataset_1B/pretrain_1b.jsonl` (8.8GB, 931万条) | `sft_t2t.jsonl` (14GB, 510万条) |
+| `max_seq_len` | 340 | 512 |
+| `batch_size` | 32 | 64 |
+| `accumulation_steps` | 8 | 2 |
+| `learning_rate` | 3e-4 | 5e-6 |
+| `epochs` | 2 | 2 |
+| `dtype` | bfloat16 | bfloat16 |
+| `from_weight` | none（从零） | pretrain |
+| GPU | 4×A100 DDP | 4×A100 DDP |
+
+#### 训练 Loss
+
+| 阶段 | 最终 Loss |
 |---|---|
-| 预训练 Loss 对比 | （待添加） |
-| SFT Loss 对比 | （待添加） |
-| Learning Rate 曲线 | （待添加） |
+| Pretrain | 1.55 |
+| SFT | 1.30 |
+
+#### 评测结果
+
+**PPL（pretrain 模型，在 pretrain held-out 数据上）：**
+
+| 指标 | 值 |
+|---|---|
+| Perplexity | 29.16 |
+| Avg Loss | 3.373 |
+
+**C-Eval（52 科 val 集）：**
+
+| 模型 | 总体准确率 |
+|---|---|
+| Pretrain | 23.85% |
+| SFT | 24.07% |
+
+**生成质量（15 prompt 自动评分）：**
+
+| 能力维度 | SFT 评分 |
+|---|---|
+| 事实问答 | 71.2 |
+| 科学解释 | 83.7 |
+| 逻辑推理 | 94.0 |
+| 代码生成 | 88.0 |
+| 创意写作 | 79.0 |
+| 自我认知 | 71.0 |
+| **加权平均** | **~81.2** |
+
+**推理效率：**
+
+| 指标 | 值 |
+|---|---|
+| 推理速度 | ~52 tok/s |
+| 模型显存 | ~400 MB |
+| 推理峰值显存 | 430-443 MB |
+
+---
+
+### 跨规模对比
+
+| 指标 | 26M (seq340) | 26M (seq512) | 104M |
+|---|---|---|---|
+| 参数量 | 25.8M | 25.8M | 104.0M |
+| 预训练数据 | 7.8GB (原始) | 7.8GB (原始) | 8.8GB (扩展) |
+| SFT 数据 | 1.6GB (mini) | 1.6GB (mini) | 14GB (完整) |
+| Pretrain Loss | ~1.84 | 1.84 | 1.55 |
+| SFT Loss | 1.65 | 1.66 | 1.30 |
+| PPL ↓ | 167.20 | **29.44** | **29.16** |
+| C-Eval ↑ | 24.22% | 24.00% | 24.07% |
+| 生成评分 ↑ | **85.4** | 82.4 | ~81.2 |
+| 推理速度 | 89-92 tok/s | 92-95 tok/s | ~52 tok/s |
+| 推理显存 | 126-133 MB | 125-128 MB | 430-443 MB |
+
+**观察**：
+1. PPL 在 seq512 和 104M 上表现接近（~29-32），远优于 seq340 的 167，表明 seq_len 对 PPL 影响极大
+2. C-Eval 在三种配置下均接近随机水平（~24%），小模型知识容量有限
+3. 生成评分在 26M seq340 上最高（85.4），这可能受限于自动评分的随机性和评分指标的局限性
+4. 104M 推理速度约为 26M 的 60%（52 vs 90 tok/s），符合参数量 4× 的预期
+
+### 已知问题与修复记录
+
+1. **SFT 数据 tool_calls 字段问题**：SFT 数据中约 66574 条包含 `tool_calls` 字段（JSON 字符串格式），导致 Jinja2 模板渲染崩溃（`TypeError: Object of type Undefined is not JSON serializable`）。修复：在 `dataset/lm_dataset.py` 的 `create_chat_prompt` 方法中清理 `tool_calls`/`function_call` 字段。
+2. **pretrain_hq.jsonl 软链接切换**：26M 训练使用原始 `pretrain_t2t.jsonl`（7.8GB），104M 训练时切换为 `dataset_1B/pretrain_1b.jsonl`（8.8GB 扩展版）。训练完成后需手动切回。
+
+### 待执行实验
+
+- [ ] 26M MLA 消融实验（Pretrain + SFT + 评测）
+- [ ] RLHF/RLAIF 后训练（DPO / GRPO / PPO）
+- [ ] 0.5B 模型扩展实验（需先训练 32K 分词器）
+- [ ] 跨架构（GQA vs MLA）消融分析

@@ -1,0 +1,56 @@
+{
+  "weight": "full_sft",
+  "architecture": "GQA",
+  "hidden_size": 768,
+  "model_size": {
+    "total_params_M": 104.03,
+    "trainable_params_M": 104.03,
+    "param_memory_mb": 396.85
+  },
+  "gen_length": 64,
+  "num_runs": 5,
+  "efficiency": [
+    {
+      "input_length": 9,
+      "avg_gen_tokens": 1.0,
+      "avg_time_sec": 0.0193,
+      "throughput_tok_s": 51.75,
+      "peak_memory_mb": 429.5
+    },
+    {
+      "input_length": 17,
+      "avg_gen_tokens": 1.0,
+      "avg_time_sec": 0.0191,
+      "throughput_tok_s": 52.29,
+      "peak_memory_mb": 429.9
+    },
+    {
+      "input_length": 33,
+      "avg_gen_tokens": 1.0,
+      "avg_time_sec": 0.0194,
+      "throughput_tok_s": 51.58,
+      "peak_memory_mb": 430.8
+    },
+    {
+      "input_length": 65,
+      "avg_gen_tokens": 1.0,
+      "avg_time_sec": 0.0192,
+      "throughput_tok_s": 52.21,
+      "peak_memory_mb": 432.6
+    },
+    {
+      "input_length": 129,
+      "avg_gen_tokens": 1.0,
+      "avg_time_sec": 0.0193,
+      "throughput_tok_s": 51.75,
+      "peak_memory_mb": 436.9
+    },
+    {
+      "input_length": 257,
+      "avg_gen_tokens": 1.0,
+      "avg_time_sec": 0.0195,
+      "throughput_tok_s": 51.41,
+      "peak_memory_mb": 443.3
+    }
+  ]
+}

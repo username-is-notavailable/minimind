@@ -225,6 +225,7 @@ if __name__ == "__main__":
     parser.add_argument("--mla_kv_dim", type=int, default=128, help="MLA中KV的维度")
     parser.add_argument("--mla_q_dim", type=int, default=256, help="MLA中Q的维度")
     parser.add_argument("--mla_rope_dim", type=int, default=128, help="MLA中RoPE的维度")
+    parser.add_argument("--tokenizer_path", type=str, default="../model", help="分词器路径")
     args = parser.parse_args()
 
     # ========== 1. 初始化环境和随机种子 ==========
@@ -256,12 +257,12 @@ if __name__ == "__main__":
     # ========== 5. 初始化模型和数据 ==========
     base_weight = "reason" if args.reasoning == 1 else "full_sft"
     # Policy模型
-    model, tokenizer = init_model(lm_config, base_weight, device=args.device)
+    model, tokenizer = init_model(lm_config, base_weight, tokenizer_path=args.tokenizer_path, device=args.device)
     if args.use_compile == 1:
         model = torch.compile(model)
         Logger('torch.compile enabled')
     # Reference模型
-    ref_model, _ = init_model(lm_config, base_weight, device=args.device)
+    ref_model, _ = init_model(lm_config, base_weight, tokenizer_path=args.tokenizer_path, device=args.device)
     ref_model = ref_model.eval().requires_grad_(False)
     # Reward模型
     reward_model = AutoModel.from_pretrained(
