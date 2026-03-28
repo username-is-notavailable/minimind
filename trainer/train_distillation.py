@@ -162,6 +162,7 @@ if __name__ == "__main__":
     parser.add_argument("--use_wandb", action="store_true", help="是否使用wandb")
     parser.add_argument("--wandb_project", type=str, default="MiniMind-Distillation", help="wandb项目名")
     parser.add_argument("--use_compile", default=0, type=int, choices=[0, 1], help="是否使用torch.compile加速（0=否，1=是）")
+    parser.add_argument("--vocab_size", type=int, default=6400, help="词表大小（6400=原始，32000=0.5B新分词器）")
     parser.add_argument("--tokenizer_path", type=str, default="../model", help="分词器路径")
     args = parser.parse_args()
 
@@ -172,8 +173,8 @@ if __name__ == "__main__":
     
     # ========== 2. 配置目录、模型参数、检查ckp ==========
     os.makedirs(args.save_dir, exist_ok=True)
-    lm_config_student = MiniMindConfig(hidden_size=args.student_hidden_size, num_hidden_layers=args.student_num_layers, use_moe=bool(args.use_moe))
-    lm_config_teacher = MiniMindConfig(hidden_size=args.teacher_hidden_size, num_hidden_layers=args.teacher_num_layers, use_moe=bool(args.use_moe))
+    lm_config_student = MiniMindConfig(hidden_size=args.student_hidden_size, num_hidden_layers=args.student_num_layers, vocab_size=args.vocab_size, use_moe=bool(args.use_moe))
+    lm_config_teacher = MiniMindConfig(hidden_size=args.teacher_hidden_size, num_hidden_layers=args.teacher_num_layers, vocab_size=args.vocab_size, use_moe=bool(args.use_moe))
     ckp_data = lm_checkpoint(lm_config_student, weight=args.save_weight, save_dir='../checkpoints') if args.from_resume==1 else None
     
     # ========== 3. 设置混合精度 ==========

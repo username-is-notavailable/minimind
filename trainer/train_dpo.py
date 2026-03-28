@@ -149,6 +149,7 @@ if __name__ == "__main__":
     parser.add_argument("--mla_kv_dim", type=int, default=128, help="MLA中KV的维度")
     parser.add_argument("--mla_q_dim", type=int, default=256, help="MLA中Q的维度")
     parser.add_argument("--mla_rope_dim", type=int, default=128, help="MLA中RoPE的维度")
+    parser.add_argument("--vocab_size", type=int, default=6400, help="词表大小（6400=原始，32000=0.5B新分词器）")
     parser.add_argument("--tokenizer_path", type=str, default="../model", help="分词器路径")
     args = parser.parse_args()
 
@@ -159,7 +160,7 @@ if __name__ == "__main__":
     
     # ========== 2. 配置目录、模型参数、检查ckp ==========
     os.makedirs(args.save_dir, exist_ok=True)
-    lm_config = MiniMindConfig(hidden_size=args.hidden_size, num_hidden_layers=args.num_hidden_layers, use_moe=bool(args.use_moe), use_mla=bool(args.use_mla), mla_kv_dim=args.mla_kv_dim, mla_q_dim=args.mla_q_dim, mla_rope_dim=args.mla_rope_dim)
+    lm_config = MiniMindConfig(hidden_size=args.hidden_size, num_hidden_layers=args.num_hidden_layers, vocab_size=args.vocab_size, use_moe=bool(args.use_moe), use_mla=bool(args.use_mla), mla_kv_dim=args.mla_kv_dim, mla_q_dim=args.mla_q_dim, mla_rope_dim=args.mla_rope_dim)
     ckp_data = lm_checkpoint(lm_config, weight=args.save_weight, save_dir='../checkpoints') if args.from_resume==1 else None
     
     # ========== 3. 设置混合精度 ==========

@@ -320,11 +320,11 @@ ln -sf ../dataset_1B/pretrain_1b.jsonl pretrain_hq.jsonl
 
 ```bash
 cd minimind/trainer
-python train_tokenizer_1b.py \
+python train_tokenizer_05b.py \
     --data_path ../dataset_1B/tokenizer_train.jsonl \
     --vocab_size 32000 \
     --max_lines 200000 \
-    --output_dir ../model_1b_tokenizer
+    --output_dir ../model_05b_tokenizer
 ```
 
 > **注意**：使用新分词器训练的 0.5B 模型与 6400 词表的 26M 模型 **PPL 不直接可比**。如需公平消融对比 MLA，应在同一分词器下对比 GQA vs MLA。
@@ -782,11 +782,11 @@ MLA 维度按 hidden_size 比例放大的经验公式：
 cd minimind/trainer
 
 # 训练 32K 词表分词器（~30 分钟）
-python train_tokenizer_1b.py \
+python train_tokenizer_05b.py \
     --data_path ../dataset_1B/tokenizer_train.jsonl \
     --vocab_size 32000 \
     --max_lines 200000 \
-    --output_dir ../model_1b_tokenizer
+    --output_dir ../model_05b_tokenizer
 ```
 
 ### 7.3 0.5B GQA 预训练 + SFT
@@ -799,7 +799,7 @@ cd minimind/trainer
 torchrun --nproc_per_node 4 train_pretrain.py \
     --hidden_size 1536 --num_hidden_layers 20 \
     --data_path ../dataset_1B/pretrain_1b.jsonl \
-    --tokenizer_path ../model_1b_tokenizer \
+    --tokenizer_path ../model_05b_tokenizer \
     --max_seq_len 512 --batch_size 16 \
     --accumulation_steps 8 \
     --learning_rate 3e-4 \
@@ -811,7 +811,7 @@ torchrun --nproc_per_node 4 train_pretrain.py \
 torchrun --nproc_per_node 4 train_full_sft.py \
     --hidden_size 1536 --num_hidden_layers 20 \
     --data_path ../dataset/sft_t2t.jsonl \
-    --tokenizer_path ../model_1b_tokenizer \
+    --tokenizer_path ../model_05b_tokenizer \
     --max_seq_len 512 --batch_size 16 \
     --from_weight pretrain \
     --epochs 2 \
@@ -836,7 +836,7 @@ torchrun --nproc_per_node 4 train_pretrain.py \
     --hidden_size 1536 --num_hidden_layers 20 \
     --use_mla 1 --mla_kv_dim 384 --mla_q_dim 768 --mla_rope_dim 192 \
     --data_path ../dataset_1B/pretrain_1b.jsonl \
-    --tokenizer_path ../model_1b_tokenizer \
+    --tokenizer_path ../model_05b_tokenizer \
     --max_seq_len 512 --batch_size 16 \
     --accumulation_steps 8 \
     --learning_rate 3e-4 \
@@ -849,7 +849,7 @@ torchrun --nproc_per_node 4 train_full_sft.py \
     --hidden_size 1536 --num_hidden_layers 20 \
     --use_mla 1 --mla_kv_dim 384 --mla_q_dim 768 --mla_rope_dim 192 \
     --data_path ../dataset/sft_t2t.jsonl \
-    --tokenizer_path ../model_1b_tokenizer \
+    --tokenizer_path ../model_05b_tokenizer \
     --max_seq_len 512 --batch_size 16 \
     --from_weight pretrain \
     --epochs 2 \

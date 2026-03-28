@@ -551,7 +551,7 @@ def main():
         print(f"  分词器训练数据: {tokenizer_file}")
     print(f"  数据统计:      {stats_file}")
     print(f"\n后续步骤:")
-    print(f"  1. 训练分词器:  cd ../trainer && python train_tokenizer_1b.py --data_path ../dataset_1B/tokenizer_train.jsonl")
+    print(f"  1. 训练分词器:  cd ../trainer && python train_tokenizer_05b.py --data_path ../dataset_1B/tokenizer_train.jsonl")
     print(f"  2. 创建软链接:  cd ../dataset && ln -sf ../dataset_1B/pretrain_1b.jsonl pretrain_hq.jsonl")
     print(f"  3. 开始训练:    cd ../trainer && torchrun ... train_pretrain.py --hidden_size 2048 --num_hidden_layers 22")
 

@@ -29,8 +29,8 @@ __pycache__/
 # 转换后的 HuggingFace 模型目录
 MiniMind2*/
 
-# 训练产生的分词器
-model_1b_tokenizer/
+# 训练产生的分词器（不忽略 model_05b_tokenizer，需要提交到 Git）
+# model_05b_tokenizer/
 
 # 用户日志
 user_logs/
@@ -38,8 +38,10 @@ user_logs/
 # 数据准备中间文件
 dataset_1B/*.bak
 dataset_1B/smoke/
+dataset_05b
 nohup.out
 
 # OS 杂项
 .DS_Store
+Thumbs.db
 Thumbs.db

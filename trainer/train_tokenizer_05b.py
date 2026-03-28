@@ -1,5 +1,5 @@
 """
-train_tokenizer_1b.py — 为 0.5B/1B 模型训练更大词表的分词器
+train_tokenizer_05b.py — 为 0.5B/1B 模型训练更大词表的分词器
 
 为什么需要新的分词器：
   - 原始 6400 词表是为 26M 模型设计的（避免 embed 占比过高）
@@ -11,18 +11,18 @@ train_tokenizer_1b.py — 为 0.5B/1B 模型训练更大词表的分词器
     cd minimind/trainer
 
     # 默认：在预训练数据上训练 32000 词表
-    python train_tokenizer_1b.py
+    python train_tokenizer_05b.py
 
     # 自定义词表大小和数据
-    python train_tokenizer_1b.py --vocab_size 32000 --data_path ../dataset_1B/tokenizer_train.jsonl
+    python train_tokenizer_05b.py --vocab_size 32000 --data_path ../dataset_1B/tokenizer_train.jsonl
 
     # 使用更多训练数据行
-    python train_tokenizer_1b.py --max_lines 500000
+    python train_tokenizer_05b.py --max_lines 500000
 
     # 训练完成后，0.5B 训练使用新分词器：
     # torchrun --nproc_per_node 4 train_pretrain.py \
     #     --hidden_size 1536 --num_hidden_layers 20 \
-    #     --tokenizer_path ../model_1b_tokenizer/ \
+    #     --tokenizer_path ../model_05b_tokenizer/ \
     #     ...
 """
 
@@ -212,13 +212,13 @@ def eval_tokenizer(output_dir):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="为 1B 模型训练更大词表的分词器")
+    parser = argparse.ArgumentParser(description="为 0.5B 模型训练更大词表的分词器")
     parser.add_argument('--data_path', default='../dataset_1B/tokenizer_train.jsonl', type=str,
                         help="训练数据路径（推荐使用 dataset_1B/tokenizer_train.jsonl，已从预训练数据均匀采样 20 万条）")
-    parser.add_argument('--output_dir', default='../model_1b_tokenizer', type=str,
+    parser.add_argument('--output_dir', default='../model_05b_tokenizer', type=str,
                         help="分词器输出目录")
     parser.add_argument('--vocab_size', default=32000, type=int,
-                        help="词表大小（推荐 32000，主流 1B 模型标准）")
+                        help="词表大小（推荐 32000，主流 0.5B 模型标准）")
     parser.add_argument('--max_lines', default=100000, type=int,
                         help="最大训练行数（0=不限，建议 10 万-50 万条即可覆盖足够的词汇分布）")
     parser.add_argument('--skip_eval', action='store_true',

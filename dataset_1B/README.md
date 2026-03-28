@@ -1,10 +1,13 @@
-# dataset_1B — 1B 模型预训练数据
+# dataset_1B — 大模型预训练数据
 
 ## 数据规模
 
 **~21.7B tokens**（6400 词表）/ **~13.9B tokens**（32K 词表）/ 34.6B 字符 / 32.3M 样本 / 63.4 GB
 
-按 Chinchilla 最优比例（~20 tokens/参数），988M 参数的 1B 模型需要约 20B tokens。当前数据量满足该目标。
+- 0.5B 模型（~545M 参数）Chinchilla 最优 ~10B tokens → 当前 13.9B tokens（32K 词表）✅ 充足
+- 1B 模型（~988M 参数）Chinchilla 最优 ~20B tokens → 当前 21.7B tokens（6400 词表）✅ 充足
+
+> 也可通过 `dataset_05b` 符号链接访问此目录。
 
 ## 数据来源
 
@@ -66,7 +69,7 @@ tail -f prepare.log  # 或 expand.log
 1. **训练分词器**：
 ```bash
 cd ../trainer
-python train_tokenizer_1b.py --data_path ../dataset_1B/tokenizer_train.jsonl --vocab_size 32000
+python train_tokenizer_05b.py --data_path ../dataset_1B/tokenizer_train.jsonl --vocab_size 32000
 ```
 
 2. **创建软链接**（让训练脚本能找到数据）：

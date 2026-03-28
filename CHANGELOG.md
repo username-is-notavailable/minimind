@@ -430,7 +430,7 @@ python run_all.py --weight pretrain --pretrain_mode  # 预训练模型仅 PPL
 python train_pretrain.py
 
 # 0.5B 训练（使用 32K 新分词器）
-python train_pretrain.py --tokenizer_path ../model_1b_tokenizer
+python train_pretrain.py --tokenizer_path ../model_05b_tokenizer
 ```
 
 ---
@@ -438,16 +438,35 @@ python train_pretrain.py --tokenizer_path ../model_1b_tokenizer
 ## 11. 其他修复
 
 - **conda 环境名统一**：EXPERIMENT_PLAN.md 中 `conda activate pre` 全部改为 `conda activate minimind`
-- **分词器脚本默认路径**：`train_tokenizer_1b.py` 的 `--data_path` 默认值从 `../dataset/pretrain_hq.jsonl` 改为 `../dataset_1B/tokenizer_train.jsonl`
+- **分词器脚本默认路径**：`train_tokenizer_05b.py` 的 `--data_path` 默认值从 `../dataset/pretrain_hq.jsonl` 改为 `../dataset_1B/tokenizer_train.jsonl`
 - **104M 训练参数补充**：EXPERIMENT_PLAN.md 新增 §3.7 记录 104M 实际验证过的训练命令和参数
+
+---
+
+## 12. 全部训练脚本新增 `--vocab_size` CLI 参数
+
+所有 9 个训练脚本新增 `--vocab_size` 参数（默认 6400），传入 `MiniMindConfig(vocab_size=args.vocab_size, ...)`。
+使用 32K 新分词器训练 0.5B 模型时必须指定 `--vocab_size 32000`，否则 embedding 维度不匹配导致 CUDA index 越界。
+
+---
+
+## 13. 1B → 0.5B 全面重命名
+
+- 实验目标从 1B（988M）改为 0.5B（545M）：`hidden_size=1536, num_hidden_layers=20, vocab_size=32000`
+- 分词器脚本：`train_tokenizer_1b.py` → `train_tokenizer_05b.py`
+- 分词器输出目录：`model_1b_tokenizer/` → `model_05b_tokenizer/`
+- 数据目录增加 `dataset_05b` 符号链接指向 `dataset_1B`（物理目录名保持兼容）
+- `model_05b_tokenizer/` 作为 32K 分词器提交到 Git（不在 .gitignore 中排除）
+- EXPERIMENT_PLAN.md 阶段七全面重写为 0.5B 配置、命令和时间预估
 
 ---
 
 ## 后续计划
 
 - [ ] MLA 消融实验：对比 MLA 与标准 GQA 在 MiniMind2-Small (26M) 上的训练效果和推理效率
-- [ ] 0.5B 模型训练：hidden_size=1536, layers=20, vocab=32K, ~545M 参数
-- [ ] 0.5B 专用分词器：基于 `tokenizer_train.jsonl` 训练 32K 词表分词器
+- [x] ~~0.5B 专用分词器训练（32K 词表）~~（已完成，保存在 `model_05b_tokenizer/`）
+- [-] 0.5B 模型预训练：hidden_size=1536, layers=20, vocab=32K, ~545M 参数（**进行中**）
+- [ ] 0.5B 模型 SFT
 - [ ] KV Cache 显存节省量化测试
 - [x] ~~将 MLA 支持扩展到 `eval_llm.py`~~（已完成）
 - [x] ~~改进 `convert_model.py` 支持 MLA 和 CLI 参数~~（已完成）
@@ -456,6 +475,7 @@ python train_pretrain.py --tokenizer_path ../model_1b_tokenizer
 - [x] ~~构建完整 benchmark 评测框架~~（已完成）
 - [x] ~~修复 `train_full_sft.py` MLA 参数传递 bug~~（已完成）
 - [x] ~~预训练数据准备（21.7B tokens）~~（已完成）
-- [x] ~~全部训练脚本新增 `--tokenizer_path` 参数~~（已完成）
+- [x] ~~全部训练脚本新增 `--tokenizer_path` 和 `--vocab_size` 参数~~（已完成）
 - [x] ~~conda 环境名统一、104M 训练参数记录~~（已完成）
+- [x] ~~1B → 0.5B 全面重命名~~（已完成）
 - [ ] 将 MLA 支持扩展到 `train_distillation.py`
