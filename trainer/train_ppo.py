@@ -237,7 +237,7 @@ def ppo_train_epoch(epoch, loader, iters, old_actor_model, ref_model, actor_sche
             
             # 使用 lm_checkpoint 保存完整状态（包括 critic）
             lm_checkpoint(lm_config, weight=args.save_weight, model=actor_model, optimizer=actor_optimizer, 
-                         epoch=epoch, step=step, wandb=wandb, save_dir='../checkpoints',
+                         epoch=epoch, step=step, wandb=wandb, save_dir=args.save_dir,
                          scheduler=actor_scheduler, critic_model=critic_model, 
                          critic_optimizer=critic_optimizer, critic_scheduler=critic_scheduler)
             actor_model.train()
@@ -295,7 +295,7 @@ if __name__ == "__main__":
     # ========== 2. 配置目录、模型参数、检查ckp ==========
     os.makedirs(args.save_dir, exist_ok=True)
     lm_config = MiniMindConfig(hidden_size=args.hidden_size, num_hidden_layers=args.num_hidden_layers, vocab_size=args.vocab_size, use_moe=bool(args.use_moe), use_mla=bool(args.use_mla), mla_kv_dim=args.mla_kv_dim, mla_q_dim=args.mla_q_dim, mla_rope_dim=args.mla_rope_dim)
-    ckp_data = lm_checkpoint(lm_config, weight=args.save_weight, save_dir='../checkpoints') if args.from_resume==1 else None
+    ckp_data = lm_checkpoint(lm_config, weight=args.save_weight, save_dir=args.save_dir) if args.from_resume==1 else None
     
     # ========== 3. 设置混合精度 ==========
     device_type = "cuda" if "cuda" in args.device else "cpu"

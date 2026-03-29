@@ -233,7 +233,7 @@ def spo_train_epoch(epoch, loader, iters, ref_model, reward_model, reward_tokeni
             state_dict = raw_model.state_dict()
             torch.save({k: v.half().cpu() for k, v in state_dict.items()}, ckp)
             lm_checkpoint(lm_config, weight=args.save_weight, model=model, optimizer=optimizer, 
-                         epoch=epoch, step=step, wandb=wandb, save_dir='../checkpoints', scheduler=scheduler)
+                         epoch=epoch, step=step, wandb=wandb, save_dir=args.save_dir, scheduler=scheduler)
             model.train()
             del state_dict
 
@@ -287,7 +287,7 @@ if __name__ == "__main__":
                                vocab_size=args.vocab_size,
                                max_seq_len=args.max_seq_len + args.max_gen_len, use_moe=bool(args.use_moe),
                                use_mla=bool(args.use_mla), mla_kv_dim=args.mla_kv_dim, mla_q_dim=args.mla_q_dim, mla_rope_dim=args.mla_rope_dim)
-    ckp_data = lm_checkpoint(lm_config, weight=args.save_weight, save_dir='../checkpoints') if args.from_resume==1 else None
+    ckp_data = lm_checkpoint(lm_config, weight=args.save_weight, save_dir=args.save_dir) if args.from_resume==1 else None
     
     # ========== 3. 设置混合精度 ==========
     device_type = "cuda" if "cuda" in args.device else "cpu"
