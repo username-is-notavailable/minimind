@@ -1340,6 +1340,233 @@ Day 3-5 — 0.5B 扩展实验:
 - C-Eval 和生成评分与 SFT 完全一致，DPO 没有显著改变模型的知识和生成能力，主要作用于偏好对齐
 - 使用固定 seed 评测，DPO 与 SFT 输出几乎相同，表明 learning_rate=4e-8 的微调幅度较小，成功避免了灾难性遗忘
 
+---
+
+### 0.5B GQA GRPO 训练（进行中）
+
+#### 训练参数
+
+| 参数 | 值 |
+|---|---|
+| `hidden_size` | 1536 |
+| `num_hidden_layers` | 20 |
+| `vocab_size` | 32000 |
+| `tokenizer_path` | `model_05b_tokenizer` |
+| `data_path` | `rlaif-mini.jsonl` (23MB) |
+| `reward_model_path` | `internlm2-1_8b-reward` |
+| `from_weight` | `full_sft`（自动加载 `full_sft_1536.pth`） |
+| `reasoning` | 0 |
+| `max_seq_len` | 66（prompt 最大长度） |
+| `max_gen_len` | 1536（生成最大长度） |
+| `num_generations` | 8（每个 prompt 生成的候选数） |
+| `batch_size` | 2 |
+| `learning_rate` | 8e-8 |
+| `beta` | 0.02（KL 惩罚系数） |
+| `epochs` | 1 |
+| `dtype` | bfloat16 |
+| `save_interval` | 100 步 |
+| GPU | 8×A100 DDP |
+| 总步数 | 1219 |
+| 预计耗时 | ~20 小时 |
+
+#### 训练进度（实时更新）
+
+| 步数 | Actor Loss | Reward | Avg Response Len |
+|---|---|---|---|
+| 10 | 0.0000 | -0.9767 | 691.25 |
+| 20 | 0.0001 | -1.9622 | 220.56 |
+| 30 | 0.0003 | -1.9141 | 468.81 |
+| 40 | 0.0008 | -0.9633 | 47.88 |
+| 50 | 0.0001 | -1.9243 | 93.69 |
+
+---
+
+### 0.5B 模型训练全流程参数汇总
+
+| 阶段 | 数据 | 数据大小 | batch | accum | lr | epochs | seq_len | GPU | 耗时 |
+|---|---|---|---|---|---|---|---|---|---|
+| **Pretrain** | `pretrain_1b.jsonl` | 63.4GB | 64 | 2 | 3e-4 | 1 | 512 | 4×A100 | ~35h |
+| **SFT** | `sft_t2t_mini.jsonl` | 1.7GB | 64 | 2 | 5e-6 | 2 | 512 | 8×A100 | ~30min |
+| **DPO** | `dpo.jsonl` | 52MB | 4 | 1 | 4e-8 | 1 | 1024 | 8×A100 | ~10min |
+| **GRPO** | `rlaif-mini.jsonl` | 23MB | 2 | — | 8e-8 | 1 | 66+1536 | 8×A100 | ~20h |
+
+#### Pretrain 完整命令与超参数
+
+```bash
+torchrun --nproc_per_node 4 train_pretrain.py \
+    --hidden_size 1536 --num_hidden_layers 20 \
+    --vocab_size 32000 \
+    --data_path ../dataset_1B/pretrain_1b.jsonl \
+    --tokenizer_path ../model_05b_tokenizer \
+    --max_seq_len 512 --batch_size 64 \
+    --accumulation_steps 2 \
+    --learning_rate 3e-4 \
+    --epochs 1 \
+    --dtype bfloat16 \
+    --save_interval 2000 \
+    --grad_clip 1.0 \
+    --log_interval 100 \
+    --num_workers 8 \
+    --save_weight pretrain \
+    --from_weight none \
+    --use_moe 0 --use_mla 0 \
+    --use_compile 0
+```
+
+| 参数 | 脚本默认值 | 0.5B 实际值 | 说明 |
+|---|---|---|---|
+| `hidden_size` | 512 | **1536** | 0.5B 模型维度 |
+| `num_hidden_layers` | 8 | **20** | 0.5B 层数 |
+| `vocab_size` | 6400 | **32000** | 32K 新分词器 |
+| `data_path` | `pretrain_hq.jsonl` | **`pretrain_1b.jsonl`** | 63.4GB 扩展数据 |
+| `tokenizer_path` | `../model` | **`../model_05b_tokenizer`** | 32K 分词器 |
+| `max_seq_len` | 340 | **512** | 覆盖更长文本 |
+| `batch_size` | 32 | **64** | A100 显存充足 |
+| `accumulation_steps` | 8 | **2** | 等效 batch 128 |
+| `learning_rate` | 5e-4 | **3e-4** | 更大模型需更保守 |
+| `epochs` | 1 | 1 | 默认值 |
+| `dtype` | bfloat16 | bfloat16 | 默认值 |
+| `save_interval` | 1000 | **2000** | 减少 I/O 开销 |
+| `grad_clip` | 1.0 | 1.0 | 默认值 |
+| `log_interval` | 100 | 100 | 默认值 |
+| `num_workers` | 8 | 8 | 默认值 |
+| `save_weight` | pretrain | pretrain | 默认值 |
+| `from_weight` | none | none | 从零训练 |
+| `from_resume` | 0 | 0 | 不续训 |
+| `use_moe` | 0 | 0 | 非 MoE |
+| `use_mla` | 0 | 0 | 非 MLA |
+| `use_compile` | 0 | 0 | 不使用 torch.compile |
+
+#### SFT 完整命令与超参数
+
+```bash
+torchrun --nproc_per_node 8 --master_port 29600 train_full_sft.py \
+    --hidden_size 1536 --num_hidden_layers 20 \
+    --vocab_size 32000 \
+    --data_path ../dataset/sft_t2t_mini.jsonl \
+    --tokenizer_path ../model_05b_tokenizer \
+    --max_seq_len 512 --batch_size 64 \
+    --from_weight pretrain \
+    --epochs 2 \
+    --accumulation_steps 2 \
+    --learning_rate 5e-6 \
+    --dtype bfloat16 \
+    --save_interval 2000 \
+    --log_interval 50 \
+    --grad_clip 1.0 \
+    --num_workers 8 \
+    --save_weight full_sft \
+    --use_moe 0 --use_mla 0 \
+    --use_compile 0
+```
+
+| 参数 | 脚本默认值 | 0.5B 实际值 | 说明 |
+|---|---|---|---|
+| `hidden_size` | 512 | **1536** | |
+| `num_hidden_layers` | 8 | **20** | |
+| `vocab_size` | 6400 | **32000** | |
+| `data_path` | `sft_mini_512.jsonl` | **`sft_t2t_mini.jsonl`** | 1.7GB SFT 数据 |
+| `tokenizer_path` | `../model` | **`../model_05b_tokenizer`** | |
+| `max_seq_len` | 340 | **512** | |
+| `batch_size` | 16 | **64** | |
+| `accumulation_steps` | 1 | **2** | 等效 batch 128 |
+| `learning_rate` | 1e-6 | **5e-6** | 略提高匹配更大 batch |
+| `epochs` | 2 | 2 | 默认值 |
+| `from_weight` | pretrain | pretrain | 默认值，加载 `pretrain_1536.pth` |
+| `save_interval` | 1000 | **2000** | |
+| `log_interval` | 100 | **50** | 更频繁打印 |
+| `grad_clip` | 1.0 | 1.0 | 默认值 |
+| `num_workers` | 8 | 8 | 默认值 |
+
+#### DPO 完整命令与超参数
+
+```bash
+torchrun --nproc_per_node 8 --master_port 29601 train_dpo.py \
+    --hidden_size 1536 --num_hidden_layers 20 \
+    --vocab_size 32000 \
+    --tokenizer_path ../model_05b_tokenizer \
+    --data_path ../dataset/dpo.jsonl \
+    --from_weight full_sft \
+    --max_seq_len 1024 \
+    --batch_size 4 \
+    --learning_rate 4e-8 \
+    --beta 0.1 \
+    --epochs 1 \
+    --dtype bfloat16 \
+    --save_interval 100 \
+    --log_interval 20 \
+    --grad_clip 1.0 \
+    --accumulation_steps 1 \
+    --num_workers 8 \
+    --save_weight dpo \
+    --use_moe 0 --use_mla 0
+```
+
+| 参数 | 脚本默认值 | 0.5B 实际值 | 说明 |
+|---|---|---|---|
+| `hidden_size` | 512 | **1536** | |
+| `num_hidden_layers` | 8 | **20** | |
+| `vocab_size` | 6400 | **32000** | |
+| `tokenizer_path` | `../model` | **`../model_05b_tokenizer`** | |
+| `data_path` | `dpo.jsonl` | `dpo.jsonl` | 默认值 |
+| `from_weight` | full_sft | full_sft | 默认值，加载 `full_sft_1536.pth` |
+| `max_seq_len` | 1024 | 1024 | 默认值 |
+| `batch_size` | 4 | 4 | 默认值 |
+| `learning_rate` | 4e-8 | 4e-8 | 默认值 |
+| `beta` | 0.1 | 0.1 | 默认值，KL 惩罚系数 |
+| `epochs` | 1 | 1 | 默认值 |
+| `save_interval` | 100 | 100 | 默认值 |
+| `log_interval` | 100 | **20** | |
+| `grad_clip` | 1.0 | 1.0 | 默认值 |
+| `accumulation_steps` | 1 | 1 | 默认值 |
+
+#### GRPO 完整命令与超参数
+
+```bash
+torchrun --nproc_per_node 8 --master_port 29602 train_grpo.py \
+    --hidden_size 1536 --num_hidden_layers 20 \
+    --vocab_size 32000 \
+    --tokenizer_path ../model_05b_tokenizer \
+    --data_path ../dataset/rlaif-mini.jsonl \
+    --reward_model_path ../../internlm2-1_8b-reward \
+    --reasoning 0 \
+    --batch_size 2 \
+    --learning_rate 8e-8 \
+    --max_seq_len 66 --max_gen_len 1536 \
+    --num_generations 8 \
+    --beta 0.02 \
+    --epochs 1 \
+    --dtype bfloat16 \
+    --save_interval 100 \
+    --log_interval 10 \
+    --grad_clip 1.0 \
+    --accumulation_steps 1 \
+    --num_workers 8 \
+    --save_weight grpo \
+    --use_moe 0 --use_mla 0
+```
+
+| 参数 | 脚本默认值 | 0.5B 实际值 | 说明 |
+|---|---|---|---|
+| `hidden_size` | 512 | **1536** | |
+| `num_hidden_layers` | 8 | **20** | |
+| `vocab_size` | 6400 | **32000** | |
+| `tokenizer_path` | `../model` | **`../model_05b_tokenizer`** | |
+| `data_path` | `rlaif-mini.jsonl` | `rlaif-mini.jsonl` | 默认值 |
+| `reward_model_path` | `../../internlm2-1_8b-reward` | `../../internlm2-1_8b-reward` | 默认值 |
+| `reasoning` | 1 | **0** | 普通模型（非推理模型），加载 `full_sft_1536.pth` |
+| `max_seq_len` | 66 | 66 | 默认值，prompt 最大长度 |
+| `max_gen_len` | 1536 | 1536 | 默认值，生成最大长度 |
+| `num_generations` | 8 | 8 | 默认值，每 prompt 生成候选数 |
+| `batch_size` | 2 | 2 | 默认值 |
+| `learning_rate` | 8e-8 | 8e-8 | 默认值 |
+| `beta` | 0.02 | 0.02 | 默认值，KL 惩罚系数 |
+| `epochs` | 1 | 1 | 默认值 |
+| `save_interval` | 10 | **100** | 减少 I/O |
+| `log_interval` | 1 | **10** | 减少日志噪音 |
+| `grad_clip` | 1.0 | 1.0 | 默认值 |
+| `accumulation_steps` | 1 | 1 | 默认值 |
+
 ### 待执行实验
 
 - [ ] 26M MLA 消融实验（Pretrain + SFT + 评测）
