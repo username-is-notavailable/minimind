@@ -10,11 +10,12 @@ from trainer.trainer_utils import setup_seed, get_model_params
 warnings.filterwarnings('ignore')
 
 def init_model(args):
-    tokenizer = AutoTokenizer.from_pretrained(args.load_from)
+    tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_path)
     if 'model' in args.load_from:
         model = MiniMindForCausalLM(MiniMindConfig(
             hidden_size=args.hidden_size,
             num_hidden_layers=args.num_hidden_layers,
+            vocab_size=args.vocab_size,
             use_moe=bool(args.use_moe),
             use_mla=bool(args.use_mla),
             mla_kv_dim=args.mla_kv_dim,
@@ -46,6 +47,8 @@ def main():
     parser.add_argument('--mla_kv_dim', type=int, default=128, help="MLA中KV的维度")
     parser.add_argument('--mla_q_dim', type=int, default=256, help="MLA中Q的维度")
     parser.add_argument('--mla_rope_dim', type=int, default=128, help="MLA中RoPE的维度")
+    parser.add_argument('--vocab_size', type=int, default=6400, help="词表大小（6400=原始，32000=0.5B新分词器）")
+    parser.add_argument('--tokenizer_path', type=str, default='model', help="分词器路径（默认model，0.5B可指定model_05b_tokenizer）")
     parser.add_argument('--inference_rope_scaling', default=False, action='store_true', help="启用RoPE位置编码外推（4倍，仅解决位置编码问题）")
     parser.add_argument('--max_new_tokens', default=8192, type=int, help="最大生成长度（注意：并非模型实际长文本能力）")
     parser.add_argument('--temperature', default=0.85, type=float, help="生成温度，控制随机性（0-1，越大越随机）")

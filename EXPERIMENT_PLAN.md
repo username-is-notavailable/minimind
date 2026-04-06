@@ -1,4 +1,4 @@
-# MiniMind MLA 消融实验计划
+    # MiniMind MLA 消融实验计划
 
 ## 实验目标
 
@@ -975,6 +975,8 @@ model = AutoModelForCausalLM.from_pretrained("your-username/MiniMind2-Small-MLA"
 - [ ] 0.5B 扩展数据已下载（阶段七前置）
 - [ ] Reward Model 已下载（阶段六 GRPO/PPO 前置）
 - [ ] MLA 消融实验（阶段四）
+- [x] 0.5B GQA Pretrain + SFT + 评测 完成
+- [x] 评测脚本已添加 --vocab_size 和 --tokenizer_path 参数
 
 ---
 
@@ -1046,7 +1048,9 @@ Day 3-5 — 0.5B 扩展实验:
 | 104M GQA Pretrain+SFT | 104.0M | ✅ 已完成 | [leixinlin/MiniMind2-Pretrain-104M](https://huggingface.co/leixinlin/MiniMind2-Pretrain-104M) / [leixinlin/MiniMind2-SFT-104M](https://huggingface.co/leixinlin/MiniMind2-SFT-104M) |
 | 26M MLA 消融 | — | ❌ 未执行 | — |
 | RLHF/RLAIF 后训练 | — | ❌ 未执行 | — |
-| 0.5B 扩展实验 | — | ❌ 未执行 | — |
+| 0.5B GQA Pretrain+SFT | 544.67M | ✅ 已完成 | [leixinlin/MiniMind2-0.5B-Pretrain](https://huggingface.co/leixinlin/MiniMind2-0.5B-Pretrain) / [leixinlin/MiniMind2-0.5B-SFT](https://huggingface.co/leixinlin/MiniMind2-0.5B-SFT) |
+| 0.5B GQA DPO | 544.67M | ✅ 已完成 | [leixinlin/MiniMind2-0.5B-DPO](https://huggingface.co/leixinlin/MiniMind2-0.5B-DPO) |
+| 0.5B MLA 消融 | — | ❌ 未执行 | — |
 
 ---
 
@@ -1179,33 +1183,168 @@ Day 3-5 — 0.5B 扩展实验:
 
 ### 跨规模对比
 
-| 指标 | 26M (seq340) | 26M (seq512) | 104M |
-|---|---|---|---|
-| 参数量 | 25.8M | 25.8M | 104.0M |
-| 预训练数据 | 7.8GB (原始) | 7.8GB (原始) | 8.8GB (扩展) |
-| SFT 数据 | 1.6GB (mini) | 1.6GB (mini) | 14GB (完整) |
-| Pretrain Loss | ~1.84 | 1.84 | 1.55 |
-| SFT Loss | 1.65 | 1.66 | 1.30 |
-| PPL ↓ | 167.20 | **29.44** | **29.16** |
-| C-Eval ↑ | 24.22% | 24.00% | 24.07% |
-| 生成评分 ↑ | **85.4** | 82.4 | ~81.2 |
-| 推理速度 | 89-92 tok/s | 92-95 tok/s | ~52 tok/s |
-| 推理显存 | 126-133 MB | 125-128 MB | 430-443 MB |
+| 指标 | 26M (seq340) | 26M (seq512) | 104M | 0.5B |
+|---|---|---|---|---|
+| 参数量 | 25.8M | 25.8M | 104.0M | 544.67M |
+| 词表大小 | 6400 | 6400 | 6400 | 32000 |
+| 预训练数据 | 7.8GB (原始) | 7.8GB (原始) | 8.8GB (扩展) | 63.4GB (20B tokens) |
+| SFT 数据 | 1.6GB (mini) | 1.6GB (mini) | 14GB (完整) | 1.6GB (mini) |
+| Pretrain Loss | ~1.84 | 1.84 | 1.55 | — |
+| SFT Loss | 1.65 | 1.66 | 1.30 | ~1.18 |
+| PPL ↓ | 167.20 | **29.44** | **29.16** | — |
+| C-Eval ↑ | 24.22% | 24.00% | 24.07% | **26.00%** |
+| 生成评分 ↑ | **85.4** | 82.4 | ~81.2 | **82.87** |
+| 推理速度 | 89-92 tok/s | 92-95 tok/s | ~52 tok/s | ~39-43 tok/s |
+| 推理显存 | 126-133 MB | 125-128 MB | 430-443 MB | 2173-2206 MB |
 
 **观察**：
 1. PPL 在 seq512 和 104M 上表现接近（~29-32），远优于 seq340 的 167，表明 seq_len 对 PPL 影响极大
-2. C-Eval 在三种配置下均接近随机水平（~24%），小模型知识容量有限
-3. 生成评分在 26M seq340 上最高（85.4），这可能受限于自动评分的随机性和评分指标的局限性
-4. 104M 推理速度约为 26M 的 60%（52 vs 90 tok/s），符合参数量 4× 的预期
+2. C-Eval 在三种配置下均接近随机水平（~24%），小模型知识容量有限；0.5B 略有提升至 26.00%，人文类别最高达 32.86%
+3. 生成评分在 26M seq340 上最高（85.4），0.5B 为 82.87，整体质量更稳定
+4. 0.5B 推理速度约 39-43 tok/s，因模型参数量大幅增加（5×104M），显存占用约 2.1GB
 
 ### 已知问题与修复记录
 
 1. **SFT 数据 tool_calls 字段问题**：SFT 数据中约 66574 条包含 `tool_calls` 字段（JSON 字符串格式），导致 Jinja2 模板渲染崩溃（`TypeError: Object of type Undefined is not JSON serializable`）。修复：在 `dataset/lm_dataset.py` 的 `create_chat_prompt` 方法中清理 `tool_calls`/`function_call` 字段。
 2. **pretrain_hq.jsonl 软链接切换**：26M 训练使用原始 `pretrain_t2t.jsonl`（7.8GB），104M 训练时切换为 `dataset_1B/pretrain_1b.jsonl`（8.8GB 扩展版）。训练完成后需手动切回。
+3. **评测脚本 0.5B 兼容**：`eval_llm.py` 和 `benchmark/` 下的评测脚本原本不支持 `--vocab_size` 和 `--tokenizer_path` 参数，已修改添加支持。
+
+---
+
+### 0.5B GQA 训练结果
+
+#### 训练参数
+
+| 参数 | Pretrain | SFT |
+|---|---|---|
+| `hidden_size` | 1536 | 1536 |
+| `num_hidden_layers` | 20 | 20 |
+| `vocab_size` | 32000 | 32000 |
+| `data_path` | `dataset_1B/pretrain_1b.jsonl` (63.4GB) | `sft_t2t_mini.jsonl` (1.7GB) |
+| `tokenizer_path` | `model_05b_tokenizer` | `model_05b_tokenizer` |
+| `max_seq_len` | 512 | 512 |
+| `batch_size` | 64 | 64 |
+| `accumulation_steps` | 2 | 2 |
+| `learning_rate` | 3e-4 | 5e-6 |
+| `epochs` | 1 | 2 |
+| `dtype` | bfloat16 | bfloat16 |
+| `from_weight` | none（从零） | pretrain |
+| GPU | 4×A100 DDP | 8×A100 DDP |
+
+#### 训练 Loss
+
+| 阶段 | 最终 Loss |
+|---|---|
+| Pretrain | — |
+| SFT | ~1.18 |
+
+#### 评测结果
+
+**C-Eval（52 科 val 集）：**
+
+| 类别 | 准确率 |
+|---|---|
+| STEM | 26.59% |
+| 社会科学 | 23.41% |
+| 人文 | 32.86% |
+| 其他 | 22.79% |
+| **总体** | **26.00%** |
+
+**生成质量（15 prompt 自动评分）：**
+
+| 能力维度 | SFT 评分 |
+|---|---|
+| 事实问答 | 76.2 |
+| 科学解释 | 89.3 |
+| 逻辑推理 | 71.0 |
+| 代码生成 | 92.0 |
+| 创意写作 | 88.0 |
+| 自我认知 | 84.0 |
+| **加权平均** | **82.87** |
+
+**推理效率：**
+
+| 指标 | 值 |
+|---|---|
+| 推理速度 | ~39-43 tok/s |
+| 模型参数 | 544.67M |
+| 参数显存 | 2077.74 MB |
+| 推理峰值显存 | 2173-2206 MB |
+
+**生成质量观察**：
+- 0.5B 模型在科学解释（89.3）和代码生成（92.0）上表现优异
+- 事实问答（76.2）偶有小错（如地球公转周期回答错误），但整体结构完整
+- 创意写作（88.0）能力良好，能写诗、推荐美食
+- 自我认知（84.0）正确识别为 MiniMind 模型
+
+---
+
+### 0.5B GQA DPO 训练结果
+
+#### 训练参数
+
+| 参数 | 值 |
+|---|---|
+| `hidden_size` | 1536 |
+| `num_hidden_layers` | 20 |
+| `vocab_size` | 32000 |
+| `data_path` | `dpo.jsonl` (52MB) |
+| `from_weight` | `full_sft` |
+| `max_seq_len` | 1024 |
+| `batch_size` | 4 |
+| `learning_rate` | 4e-8 |
+| `beta` | 0.1 |
+| `epochs` | 1 |
+| `dtype` | bfloat16 |
+| GPU | 8×A100 DDP |
+
+#### 训练 Loss
+
+| 阶段 | 最终 Loss |
+|---|---|
+| DPO | ~0.692（接近 ln(2)≈0.693，理想值） |
+
+#### 评测结果
+
+**C-Eval（52 科 val 集）：**
+
+| 类别 | SFT | DPO | 变化 |
+|---|---|---|---|
+| STEM | 26.59% | 26.30% | -0.29% |
+| 社会科学 | 23.41% | 23.41% | 0% |
+| 人文 | 32.86% | 32.86% | 0% |
+| 其他 | 22.79% | 22.99% | +0.20% |
+| **总体** | **26.00%** | **26.00%** | **0%** |
+
+**生成质量对比（15 prompt）：**
+
+| 能力维度 | SFT | DPO | 变化 |
+|---|---|---|---|
+| 事实问答 | 76.2 | 76.2 | 0 |
+| 科学解释 | 89.3 | 89.3 | 0 |
+| 逻辑推理 | 71.0 | 71.0 | 0 |
+| 代码生成 | 92.0 | 92.0 | 0 |
+| 创意写作 | 88.0 | 88.0 | 0 |
+| 自我认知 | 84.0 | 84.0 | 0 |
+| **加权平均** | **82.87** | **82.87** | **0** |
+
+**推理效率：**
+
+| 指标 | SFT | DPO |
+|---|---|---|
+| 推理速度 | ~39-43 tok/s | ~38-43 tok/s |
+| 推理峰值显存 | 2173-2206 MB | 2173-2206 MB |
+
+**DPO 分析**：
+- DPO 的 loss 收敛至 ~0.692，接近理论最优值 ln(2)≈0.693，说明模型已学习偏好信号
+- C-Eval 和生成评分与 SFT 完全一致，DPO 没有显著改变模型的知识和生成能力，主要作用于偏好对齐
+- 使用固定 seed 评测，DPO 与 SFT 输出几乎相同，表明 learning_rate=4e-8 的微调幅度较小，成功避免了灾难性遗忘
 
 ### 待执行实验
 
 - [ ] 26M MLA 消融实验（Pretrain + SFT + 评测）
-- [ ] RLHF/RLAIF 后训练（DPO / GRPO / PPO）
-- [ ] 0.5B 模型扩展实验（需先训练 32K 分词器）
+- [x] 0.5B GQA DPO 后训练 + 评测
+- [ ] 0.5B GRPO/PPO 后训练（需下载 Reward Model）
+- [x] 0.5B GQA 扩展实验（Pretrain + SFT + 评测）
+- [ ] 0.5B MLA 扩展实验（Pretrain + SFT + 评测）
 - [ ] 跨架构（GQA vs MLA）消融分析

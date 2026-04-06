@@ -45,6 +45,8 @@ def main():
     parser.add_argument('--mla_kv_dim', type=int, default=128)
     parser.add_argument('--mla_q_dim', type=int, default=256)
     parser.add_argument('--mla_rope_dim', type=int, default=128)
+    parser.add_argument('--vocab_size', type=int, default=6400)
+    parser.add_argument('--tokenizer_path', type=str, default='../model/')
     parser.add_argument('--tasks', default='all', type=str,
                         help="评测任务: ppl,ceval,gen,eff,all")
     parser.add_argument('--pretrain_mode', action='store_true',
@@ -72,6 +74,8 @@ def main():
         '--mla_kv_dim', str(args.mla_kv_dim),
         '--mla_q_dim', str(args.mla_q_dim),
         '--mla_rope_dim', str(args.mla_rope_dim),
+        '--vocab_size', str(args.vocab_size),
+        '--tokenizer_path', args.tokenizer_path,
     ]
 
     arch = "MLA" if args.use_mla else "GQA"

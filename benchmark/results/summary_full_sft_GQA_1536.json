@@ -1,0 +1,503 @@
+{
+  "ceval": {
+    "weight": "full_sft",
+    "architecture": "GQA",
+    "hidden_size": 1536,
+    "split": "val",
+    "overall_accuracy": 0.26,
+    "total_correct": 350,
+    "total_count": 1346,
+    "category_results": {
+      "其他": {
+        "correct": 116,
+        "total": 509,
+        "accuracy": 0.2279
+      },
+      "STEM": {
+        "correct": 92,
+        "total": 346,
+        "accuracy": 0.2659
+      },
+      "人文": {
+        "correct": 69,
+        "total": 210,
+        "accuracy": 0.3286
+      },
+      "社会科学": {
+        "correct": 70,
+        "total": 299,
+        "accuracy": 0.2341
+      }
+    },
+    "subject_results": {
+      "accountant": {
+        "correct": 9,
+        "total": 49,
+        "accuracy": 0.1837
+      },
+      "advanced_mathematics": {
+        "correct": 5,
+        "total": 19,
+        "accuracy": 0.2632
+      },
+      "art_studies": {
+        "correct": 16,
+        "total": 33,
+        "accuracy": 0.4848
+      },
+      "basic_medicine": {
+        "correct": 6,
+        "total": 19,
+        "accuracy": 0.3158
+      },
+      "business_administration": {
+        "correct": 10,
+        "total": 33,
+        "accuracy": 0.303
+      },
+      "chinese_language_and_literature": {
+        "correct": 8,
+        "total": 23,
+        "accuracy": 0.3478
+      },
+      "civil_servant": {
+        "correct": 14,
+        "total": 47,
+        "accuracy": 0.2979
+      },
+      "clinical_medicine": {
+        "correct": 8,
+        "total": 22,
+        "accuracy": 0.3636
+      },
+      "college_chemistry": {
+        "correct": 6,
+        "total": 24,
+        "accuracy": 0.25
+      },
+      "college_economics": {
+        "correct": 9,
+        "total": 55,
+        "accuracy": 0.1636
+      },
+      "college_physics": {
+        "correct": 3,
+        "total": 19,
+        "accuracy": 0.1579
+      },
+      "college_programming": {
+        "correct": 12,
+        "total": 37,
+        "accuracy": 0.3243
+      },
+      "computer_architecture": {
+        "correct": 4,
+        "total": 21,
+        "accuracy": 0.1905
+      },
+      "computer_network": {
+        "correct": 3,
+        "total": 19,
+        "accuracy": 0.1579
+      },
+      "discrete_mathematics": {
+        "correct": 5,
+        "total": 16,
+        "accuracy": 0.3125
+      },
+      "education_science": {
+        "correct": 9,
+        "total": 29,
+        "accuracy": 0.3103
+      },
+      "electrical_engineer": {
+        "correct": 10,
+        "total": 37,
+        "accuracy": 0.2703
+      },
+      "environmental_impact_assessment_engineer": {
+        "correct": 6,
+        "total": 31,
+        "accuracy": 0.1935
+      },
+      "fire_engineer": {
+        "correct": 6,
+        "total": 31,
+        "accuracy": 0.1935
+      },
+      "high_school_biology": {
+        "correct": 3,
+        "total": 19,
+        "accuracy": 0.1579
+      },
+      "high_school_chemistry": {
+        "correct": 9,
+        "total": 19,
+        "accuracy": 0.4737
+      },
+      "high_school_chinese": {
+        "correct": 3,
+        "total": 19,
+        "accuracy": 0.1579
+      },
+      "high_school_geography": {
+        "correct": 7,
+        "total": 19,
+        "accuracy": 0.3684
+      },
+      "high_school_history": {
+        "correct": 3,
+        "total": 20,
+        "accuracy": 0.15
+      },
+      "high_school_mathematics": {
+        "correct": 5,
+        "total": 18,
+        "accuracy": 0.2778
+      },
+      "high_school_physics": {
+        "correct": 4,
+        "total": 19,
+        "accuracy": 0.2105
+      },
+      "high_school_politics": {
+        "correct": 1,
+        "total": 19,
+        "accuracy": 0.0526
+      },
+      "ideological_and_moral_cultivation": {
+        "correct": 7,
+        "total": 19,
+        "accuracy": 0.3684
+      },
+      "law": {
+        "correct": 7,
+        "total": 24,
+        "accuracy": 0.2917
+      },
+      "legal_professional": {
+        "correct": 3,
+        "total": 23,
+        "accuracy": 0.1304
+      },
+      "logic": {
+        "correct": 9,
+        "total": 22,
+        "accuracy": 0.4091
+      },
+      "mao_zedong_thought": {
+        "correct": 6,
+        "total": 24,
+        "accuracy": 0.25
+      },
+      "marxism": {
+        "correct": 3,
+        "total": 19,
+        "accuracy": 0.1579
+      },
+      "metrology_engineer": {
+        "correct": 7,
+        "total": 24,
+        "accuracy": 0.2917
+      },
+      "middle_school_biology": {
+        "correct": 6,
+        "total": 21,
+        "accuracy": 0.2857
+      },
+      "middle_school_chemistry": {
+        "correct": 7,
+        "total": 20,
+        "accuracy": 0.35
+      },
+      "middle_school_geography": {
+        "correct": 2,
+        "total": 12,
+        "accuracy": 0.1667
+      },
+      "middle_school_history": {
+        "correct": 9,
+        "total": 22,
+        "accuracy": 0.4091
+      },
+      "middle_school_mathematics": {
+        "correct": 5,
+        "total": 19,
+        "accuracy": 0.2632
+      },
+      "middle_school_physics": {
+        "correct": 2,
+        "total": 19,
+        "accuracy": 0.1053
+      },
+      "middle_school_politics": {
+        "correct": 6,
+        "total": 21,
+        "accuracy": 0.2857
+      },
+      "modern_chinese_history": {
+        "correct": 4,
+        "total": 23,
+        "accuracy": 0.1739
+      },
+      "operating_system": {
+        "correct": 9,
+        "total": 19,
+        "accuracy": 0.4737
+      },
+      "physician": {
+        "correct": 14,
+        "total": 49,
+        "accuracy": 0.2857
+      },
+      "plant_protection": {
+        "correct": 5,
+        "total": 22,
+        "accuracy": 0.2273
+      },
+      "probability_and_statistics": {
+        "correct": 6,
+        "total": 18,
+        "accuracy": 0.3333
+      },
+      "professional_tour_guide": {
+        "correct": 10,
+        "total": 29,
+        "accuracy": 0.3448
+      },
+      "sports_science": {
+        "correct": 2,
+        "total": 19,
+        "accuracy": 0.1053
+      },
+      "tax_accountant": {
+        "correct": 17,
+        "total": 49,
+        "accuracy": 0.3469
+      },
+      "teacher_qualification": {
+        "correct": 10,
+        "total": 44,
+        "accuracy": 0.2273
+      },
+      "urban_and_rural_planner": {
+        "correct": 8,
+        "total": 46,
+        "accuracy": 0.1739
+      },
+      "veterinary_medicine": {
+        "correct": 2,
+        "total": 23,
+        "accuracy": 0.087
+      }
+    }
+  },
+  "generation": {
+    "weight": "full_sft",
+    "architecture": "GQA",
+    "hidden_size": 1536,
+    "avg_score": 82.87,
+    "avg_speed": 39.69,
+    "category_scores": {
+      "事实问答": 76.2,
+      "科学解释": 89.3,
+      "逻辑推理": 71.0,
+      "代码生成": 92.0,
+      "创意写作": 88.0,
+      "自我认知": 84.0
+    },
+    "details": [
+      {
+        "prompt": "中国的首都是哪里？",
+        "category": "事实问答",
+        "difficulty": "easy",
+        "response": "\n中国的首都是北京。北京位于中国的东部，是中国的东部中心，是连接东西方的重要交通枢纽。北京不仅是中国的首都，也是中国政治、经济和文化的重要中心。\n",
+        "score": 100,
+        "gen_tokens": 40,
+        "tokens_per_sec": 29.97
+      },
+      {
+        "prompt": "世界上最高的山峰是什么？",
+        "category": "事实问答",
+        "difficulty": "easy",
+        "response": "\n世界上最高的山峰是珠穆朗玛峰，它位于尼泊尔和中国之间，海拔高度为8,848.86米（29,031.69英尺）。\n",
+        "score": 73,
+        "gen_tokens": 39,
+        "tokens_per_sec": 38.32
+      },
+      {
+        "prompt": "万有引力是谁提出的？",
+        "category": "事实问答",
+        "difficulty": "easy",
+        "response": "\n万有引力是由英国物理学家艾萨克·牛顿在17世纪提出的。牛顿通过实验发现了万有引力定律，这一发现奠定了经典力学的基础，并推动了现代物理学的发展。因此，万有引力是牛顿在17世纪提出的。\n",
+        "score": 80,
+        "gen_tokens": 54,
+        "tokens_per_sec": 40.31
+      },
+      {
+        "prompt": "地球绕太阳一周需要多长时间？",
+        "category": "事实问答",
+        "difficulty": "easy",
+        "response": "\n地球绕太阳一周需要的时间约为 **2.5万年**。这一时间称为“地球公转周期”。\n",
+        "score": 52,
+        "gen_tokens": 26,
+        "tokens_per_sec": 39.53
+      },
+      {
+        "prompt": "为什么天空是蓝色的？",
+        "category": "科学解释",
+        "difficulty": "medium",
+        "response": "\n天空之所以呈现出蓝色，主要是由于光的散射作用。当阳光进入大气层时，空气分子会散射光，尤其是短波长光的散射更强。短波长光的波长较短，容易被气体分子散射，因此蓝光在大气中更容易被散射，使天空呈现出蓝色。此外，大气中的分子对短波长光的散射作用较弱，因此蓝光在大气中的散射效果较强，使得天空呈现出蓝色。\n",
+        "score": 92,
+        "gen_tokens": 87,
+        "tokens_per_sec": 39.48
+      },
+      {
+        "prompt": "解释一下光合作用的基本过程",
+        "category": "科学解释",
+        "difficulty": "medium",
+        "response": "光合作用是植物、某些细菌和藻类利用光能将二氧化碳和水转化为有机物质（如葡萄糖）和氧气的过程。这个过程主要发生在植物的叶子中的叶绿体中。以下是光合作用的基本过程：\n\n1. **光能吸收**：叶绿体中的叶绿素和其他色素吸收太阳光的能量。叶绿素主要吸收蓝光和红光，而反射绿光，使得植物能够利用这些光能进行光合作用。\n\n2. **光反应**：在叶绿体的类囊体膜上，叶绿素吸收光能后，激发电子从低能级跃迁到高能级，形成高能电子和激发态分子。这些高能电子和激发态分子与水分子反应，将水分子分解为氧气、质子和电子。这个过程产生ATP（三磷酸腺苷）和NADPH（还原型烟酰胺腺嘌呤二核苷酸磷酸），以及NADPH（还原型辅酶A磷酸核糖核苷酸磷酸）。\n\n3. **暗反应**：光反应产生的ATP和NADPH需要能量来驱动ATP和NADPH的分解。在叶绿体的基质中，光反应首先被叶绿素分子捕获，通过电子传递链，产生ATP和NADPH。随后，这些能量通过一系列酶的催化作用，将ADP和Pi转化为ATP，同时释放出氧气。这个过程可以表示为：6CO2 + 6H2O + 光能 → C6H12O6 + 6O2 + 6H2O + 能量\n\n4. **再生**：暗反应和暗反应同时进行，将产生的ATP和NADPH分别用于生成葡萄糖和其他有机物。这些有机物在植物细胞内合成新的葡萄糖，为植物提供能量和生长所需的有机物质。\n\n通过这个过程，植物能够将太阳能转化为化学能，用于生长和维持生命活动。",
+        "score": 96,
+        "gen_tokens": 407,
+        "tokens_per_sec": 38.39
+      },
+      {
+        "prompt": "海水为什么是咸的？",
+        "category": "科学解释",
+        "difficulty": "medium",
+        "response": "\n海水之所以是咸的，主要是由于以下几个原因：\n\n1. **盐分积累**：海水中的盐分主要来源于海洋中的盐分，如盐分和盐分溶解在水中的物质。\n\n2. **海水温度影响**：盐分在高温下更容易溶解，而在低温下则更容易溶解，导致海水呈现出咸味。\n\n3. **咸度影响**：海水中的盐分含量随温度变化，随着温度的升高，盐分含量增加，而温度下降，盐分含量减少。\n\n4. **盐分溶解度**：盐分溶解在水中时，溶解度取决于盐分溶解的盐分量，而溶解度随盐分浓度的增加而增加。\n\n5. **盐分溶解度**：盐分溶解在水中时，溶解度取决于盐分溶解的盐分量，而溶解度随盐分浓度的增加而增加。\n\n综上所述，海水之所以是咸的，是由于盐分在温度变化和溶解度影响下，盐分溶解度增加，导致海水呈现出咸味。\n",
+        "score": 80,
+        "gen_tokens": 223,
+        "tokens_per_sec": 40.69
+      },
+      {
+        "prompt": "如果所有的猫都是动物，小花是猫，那么小花是什么？",
+        "category": "逻辑推理",
+        "difficulty": "easy",
+        "response": "\n根据分析，小花是猫。因此，小花是猫。\n",
+        "score": 46,
+        "gen_tokens": 18,
+        "tokens_per_sec": 40.22
+      },
+      {
+        "prompt": "比较一下猫和狗作为宠物的优缺点",
+        "category": "逻辑推理",
+        "difficulty": "medium",
+        "response": "猫和狗作为宠物的选择通常取决于个人的生活方式、家庭环境、个人喜好以及经济能力。下面是对猫和狗作为宠物的优缺点的简要比较：\n\n### 优点：\n\n1. **独立性**：猫和狗通常比狗更独立，不需要像狗那样频繁的散步或长时间的陪伴，这使得它们成为忙碌生活中的理想选择。\n2. **社交性**：猫和狗都喜欢与人类和其他动物互动，它们能够建立深厚的社会关系，这对于需要大量陪伴和互动的宠物来说非常重要。\n3. **清洁**：狗比猫更容易照顾，它们需要定期遛狗、清洁猫砂盆，并提供足够的运动和互动。猫则相对独立，不需要频繁的清洁，但需要定期洗澡和梳理毛发。\n4. **健康**：与狗相比，猫的慢性疾病风险较低，而狗的慢性疾病风险较高，如心脏病、糖尿病等。\n\n### 缺点：\n\n1. **社交需求**：猫和狗都需要与人类和其他动物互动，但它们的社交需求可能因品种而异。例如，一些品种的狗可能更喜欢与人互动，而一些品种的猫可能更喜欢独处。\n2. **情感联系**：猫和狗在情感上往往有较高的相似性，但猫和狗在表达情感方面可能有不同的方式，这取决于品种和性格。\n3. **适应性**：猫和狗在适应新环境方面可能有不同的挑战，例如，猫可能需要更多的时间来适应新家庭成员或新居住环境，而狗则可能需要更长的时间来适应家庭生活。\n4. **健康风险**：猫和狗在健康状况上可能有不同的风险，例如，猫的呼吸系统可能更适合某些特定的猫品种，而狗可能更适应于特定的狗种。\n\n### 结论：\n\n猫和狗作为宠物的选择取决于个人的偏好、生活方式和家庭环境。考虑选择哪种宠物，重要的是找到一个能够满足你生活需求、能够与你建立深厚关系、提供良好照顾和快乐的伙伴。",
+        "score": 96,
+        "gen_tokens": 408,
+        "tokens_per_sec": 38.54
+      },
+      {
+        "prompt": "用Python写一个计算斐波那契数列的函数",
+        "category": "代码生成",
+        "difficulty": "medium",
+        "response": "当然，下面是一个使用递归和动态规划两种方法来计算斐波那契数列的Python函数：\n\n### 1. 递归方法\n递归方法是最直观的实现方式，但效率较低，因为它会重复计算许多相同的子问题。\n\n```python\ndef fibonacci_recursive(n):\n    if n <= 0:\n        return \"输入的数字应该大于0\"\n    elif n == 1:\n        return 0\n    elif n == 2:\n        return 1\n    else:\n        return fibonacci_recursive(n-1) + fibonacci_recursive(n-2)\n```\n\n### 2. 动态规划方法\n动态规划方法通过存储已经计算过的斐波那契数来避免重复计算，从而提高效率。\n\n```python\ndef fibonacci_dp(n):\n    if n <= 0:\n        return \"输入的数字应该大于0\"\n    elif n == 1:\n        return 0\n    elif n == 2:\n        return 1\n    else:\n        fib = [0, 1]\n        for i in range(2, n):\n            fib.append(fib[i-1] + fib[i-2])\n        return fib[n-1]\n```\n\n### 使用示例\n```python\n# 递归方法\nprint(fibonacci_recursive(10))  # 输出: 55\n\n# 动态规划方法\nprint(fibonacci_dp(10))  # 输出: 55\n```\n\n这两种方法都可以有效地计算斐波那契数列，具体选择哪种方法取决于你的具体需求。递归方法更适用于理解递归过程，而动态规划方法则更适用于计算大数斐波那契数。",
+        "score": 96,
+        "gen_tokens": 343,
+        "tokens_per_sec": 41.15
+      },
+      {
+        "prompt": "用Python写一个冒泡排序算法",
+        "category": "代码生成",
+        "difficulty": "medium",
+        "response": "冒泡排序是一种简单的排序算法，它重复地遍历要排序的数列，一次比较两个元素，如果他们的顺序错误就把他们交换过来。遍历数列的工作是重复地进行直到没有再需要交换，也就是说该数列已经排序完成。\n\n以下是一个使用Python编写的冒泡排序算法：\n\n```python\ndef bubble_sort(arr):\n    n = len(arr)\n    # 遍历所有数组元素\n    for i in range(n):\n        # 最后i个元素已经到位，所以不需要再比较\n        for j in range(0, n-i-1):\n            # 交换如果当前元素大于下一个元素\n            if arr[j] > arr[j+1] :\n                arr[j], arr[j+1] = arr[j+1], arr[j]\n    return arr\n\n# 测试代码\narr = [64, 34, 25, 12, 22, 11, 90]\nprint(\"原始数组是:\", arr)\nbubble_sort(arr)\nprint(\"排序后的数组是:\", arr)\n```\n\n在这个代码中，我们定义了一个名为`bubble_sort`的函数，它接受一个数组作为参数。函数内部有两个嵌套的for循环，外层循环遍历数组的每个元素，内层循环比较并交换相邻的元素，如果它们的顺序错误。这个过程会重复进行，直到数组完全排序。最后，函数返回排序后的数组。",
+        "score": 88,
+        "gen_tokens": 296,
+        "tokens_per_sec": 41.36
+      },
+      {
+        "prompt": "写一首关于春天的五言绝句",
+        "category": "创意写作",
+        "difficulty": "hard",
+        "response": "\n《五绝·咏春》\n春色满园，花香满园。\n红梅开得艳，青梅落花零。\n\n赏析：这首作品描绘了春天的景象，通过“春色满园”、“花香满园”等意象，展现了春天的美丽。后两句“红梅开得艳，青梅落花零”则进一步展现了春天的生机勃勃，表达了春天的美好与宁静。\n",
+        "score": 80,
+        "gen_tokens": 92,
+        "tokens_per_sec": 42.06
+      },
+      {
+        "prompt": "推荐一些中国的美食",
+        "category": "创意写作",
+        "difficulty": "easy",
+        "response": "中国的美食种类繁多，风味各异，以下是一些著名的中国美食：\n\n1. **北京烤鸭**：北京烤鸭是北京的代表性菜肴之一，以其皮脆肉嫩、色泽红润、味道鲜美而闻名。\n\n2. **四川火锅**：四川火锅以其麻辣鲜香、汤汁浓郁而受到喜爱，是夏季消暑的佳品。\n\n3. **广东早茶**：广东的早茶文化非常发达，包括点心、粥品、甜品等，如点心的种类繁多，如虾饺、烧卖、肠粉等。\n\n4. **江苏盐水鸭**：盐水鸭是江苏传统名菜，以其肥而不腻、鲜嫩可口而受到欢迎，是夏季的消暑佳品。\n\n5. **山东煎饼**：煎饼是一种用薄饼包裹着煎蛋、葱花、黄瓜丝、豆芽等食材的传统小吃，口感独特。\n\n6. **福建沙茶面**：沙茶面是福建的传统面食，以沙茶酱为调料，面条细滑，味道鲜美，是福建饮食文化的重要组成部分。\n\n7. **浙江西湖醋鱼**：西湖醋鱼是浙江的传统名菜，以西湖鲫鱼为主料，佐以西湖醋、辣椒、葱、蒜等调料，味道酸甜可口。\n\n8. **广东点心**：包括虾饺、烧卖、叉烧包、肠粉等，这些点心不仅味道独特，而且制作工艺精细，是广东饮食文化的代表。\n\n9. **云南过桥米线**：过桥米线是云南的传统美食，以大米为主料，搭配各种肉类、蔬菜等，汤底鲜美，味道丰富。\n\n10. **四川火锅**：四川火锅以其麻辣鲜香、汤汁丰富而受到喜爱，是四川饮食文化的重要组成部分。\n\n这些美食不仅代表了中国的饮食文化，也是了解中国历史、文化和饮食艺术的窗口。",
+        "score": 96,
+        "gen_tokens": 410,
+        "tokens_per_sec": 40.46
+      },
+      {
+        "prompt": "你是谁？",
+        "category": "自我认知",
+        "difficulty": "easy",
+        "response": "\n您好！我是由中国的个人开发者开发的智能助手minimind。有关模型和产品的详细内容请参考官方文档。\n",
+        "score": 76,
+        "gen_tokens": 28,
+        "tokens_per_sec": 39.56
+      },
+      {
+        "prompt": "解释什么是机器学习",
+        "category": "自我认知",
+        "difficulty": "medium",
+        "response": "\n机器学习是一种利用数据模型自动分析并预测结果的技术。它通过将大量数据输入模型，学习规律并发现数据中的模式和规律，从而实现预测或分类。机器学习可以应用于各种领域，如医疗、金融、交通、教育等。机器学习的核心是算法，通过算法自动发现数据中的规律，提高预测的准确性和效率。\n",
+        "score": 92,
+        "gen_tokens": 69,
+        "tokens_per_sec": 38.28
+      }
+    ]
+  },
+  "efficiency": {
+    "weight": "full_sft",
+    "architecture": "GQA",
+    "hidden_size": 1536,
+    "model_size": {
+      "total_params_M": 544.67,
+      "trainable_params_M": 544.67,
+      "param_memory_mb": 2077.74
+    },
+    "gen_length": 64,
+    "num_runs": 5,
+    "efficiency": [
+      {
+        "input_length": 9,
+        "avg_gen_tokens": 64.0,
+        "avg_time_sec": 1.5189,
+        "throughput_tok_s": 42.14,
+        "peak_memory_mb": 2173.8
+      },
+      {
+        "input_length": 17,
+        "avg_gen_tokens": 64.0,
+        "avg_time_sec": 1.4619,
+        "throughput_tok_s": 43.78,
+        "peak_memory_mb": 2174.8
+      },
+      {
+        "input_length": 33,
+        "avg_gen_tokens": 64.0,
+        "avg_time_sec": 1.4792,
+        "throughput_tok_s": 43.27,
+        "peak_memory_mb": 2176.8
+      },
+      {
+        "input_length": 65,
+        "avg_gen_tokens": 64.0,
+        "avg_time_sec": 1.4759,
+        "throughput_tok_s": 43.36,
+        "peak_memory_mb": 2181.0
+      },
+      {
+        "input_length": 129,
+        "avg_gen_tokens": 64.0,
+        "avg_time_sec": 1.5968,
+        "throughput_tok_s": 40.08,
+        "peak_memory_mb": 2189.2
+      },
+      {
+        "input_length": 257,
+        "avg_gen_tokens": 64.0,
+        "avg_time_sec": 1.5673,
+        "throughput_tok_s": 40.83,
+        "peak_memory_mb": 2205.9
+      }
+    ]
+  }
+}

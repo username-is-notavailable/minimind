@@ -13,7 +13,7 @@ warnings.filterwarnings('ignore', category=UserWarning)
 
 
 # MoE/MLA模型需使用此函数转换（自定义架构，加载时需 trust_remote_code=True）
-def convert_torch2transformers_minimind(torch_path, transformers_path, lm_config=None, dtype=torch.float16):
+def convert_torch2transformers_minimind(torch_path, transformers_path, lm_config=None, dtype=torch.float16, tokenizer_path='../model'):
     MiniMindConfig.register_for_auto_class()
     MiniMindForCausalLM.register_for_auto_class("AutoModelForCausalLM")
     lm_model = MiniMindForCausalLM(lm_config)
@@ -24,7 +24,7 @@ def convert_torch2transformers_minimind(torch_path, transformers_path, lm_config
     model_params = sum(p.numel() for p in lm_model.parameters() if p.requires_grad)
     print(f'模型参数: {model_params / 1e6} 百万 = {model_params / 1e9} B (Billion)')
     lm_model.save_pretrained(transformers_path, safe_serialization=False)
-    tokenizer = AutoTokenizer.from_pretrained('../model/')
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
     tokenizer.save_pretrained(transformers_path)
     # 兼容transformers-5.0的写法
     config_path = os.path.join(transformers_path, "tokenizer_config.json")
@@ -33,7 +33,7 @@ def convert_torch2transformers_minimind(torch_path, transformers_path, lm_config
 
 
 # LlamaForCausalLM结构兼容第三方生态（仅适用于标准GQA模型，不支持MLA/MoE）
-def convert_torch2transformers_llama(torch_path, transformers_path, lm_config=None, dtype=torch.float16):
+def convert_torch2transformers_llama(torch_path, transformers_path, lm_config=None, dtype=torch.float16, tokenizer_path='../model'):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     state_dict = torch.load(torch_path, map_location=device)
     llama_config = LlamaConfig(
@@ -54,7 +54,7 @@ def convert_torch2transformers_llama(torch_path, transformers_path, lm_config=No
     llama_model.save_pretrained(transformers_path)
     model_params = sum(p.numel() for p in llama_model.parameters() if p.requires_grad)
     print(f'模型参数: {model_params / 1e6} 百万 = {model_params / 1e9} B (Billion)')
-    tokenizer = AutoTokenizer.from_pretrained('../model/')
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
     tokenizer.save_pretrained(transformers_path)
     # 兼容transformers-5.0的写法
     config_path = os.path.join(transformers_path, "tokenizer_config.json")
@@ -79,6 +79,8 @@ if __name__ == '__main__':
     parser.add_argument('--mla_kv_dim', type=int, default=128, help="MLA中KV的维度")
     parser.add_argument('--mla_q_dim', type=int, default=256, help="MLA中Q的维度")
     parser.add_argument('--mla_rope_dim', type=int, default=128, help="MLA中RoPE的维度")
+    parser.add_argument('--vocab_size', type=int, default=6400, help="词表大小（6400=原始，32000=0.5B新分词器）")
+    parser.add_argument('--tokenizer_path', type=str, default='../model', help="分词器路径")
     parser.add_argument('--weight', default='full_sft', type=str, help="权重名称前缀（pretrain, full_sft, dpo 等）")
     parser.add_argument('--input_dir', default='../out', type=str, help="输入权重目录")
     parser.add_argument('--output_dir', default=None, type=str, help="输出目录（默认自动生成）")
@@ -88,12 +90,14 @@ if __name__ == '__main__':
     lm_config = MiniMindConfig(
         hidden_size=args.hidden_size,
         num_hidden_layers=args.num_hidden_layers,
+        vocab_size=args.vocab_size,
         use_moe=bool(args.use_moe),
         use_mla=bool(args.use_mla),
         mla_kv_dim=args.mla_kv_dim,
         mla_q_dim=args.mla_q_dim,
         mla_rope_dim=args.mla_rope_dim,
     )
+    tokenizer_path = args.tokenizer_path
 
     moe_suffix = '_moe' if lm_config.use_moe else ''
     torch_path = f"{args.input_dir}/{args.weight}_{lm_config.hidden_size}{moe_suffix}.pth"
@@ -111,7 +115,7 @@ if __name__ == '__main__':
     else:
         if lm_config.use_mla or lm_config.use_moe:
             # MLA 和 MoE 模型使用 MiniMind 原生格式（自定义架构，需 trust_remote_code）
-            convert_torch2transformers_minimind(torch_path, args.output_dir, lm_config=lm_config)
+            convert_torch2transformers_minimind(torch_path, args.output_dir, lm_config=lm_config, tokenizer_path=tokenizer_path)
         else:
             # 标准 GQA 模型可转为 Llama 格式（兼容第三方生态）
-            convert_torch2transformers_llama(torch_path, args.output_dir, lm_config=lm_config)
+            convert_torch2transformers_llama(torch_path, args.output_dir, lm_config=lm_config, tokenizer_path=tokenizer_path)

@@ -32,10 +32,11 @@ warnings.filterwarnings('ignore')
 
 
 def load_model(args):
-    tokenizer = AutoTokenizer.from_pretrained('../model/')
+    tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_path)
     config = MiniMindConfig(
         hidden_size=args.hidden_size,
         num_hidden_layers=args.num_hidden_layers,
+        vocab_size=args.vocab_size,
         use_moe=bool(args.use_moe),
         use_mla=bool(args.use_mla),
         mla_kv_dim=args.mla_kv_dim,
@@ -125,6 +126,8 @@ def main():
     parser.add_argument('--mla_kv_dim', type=int, default=128)
     parser.add_argument('--mla_q_dim', type=int, default=256)
     parser.add_argument('--mla_rope_dim', type=int, default=128)
+    parser.add_argument('--vocab_size', type=int, default=6400)
+    parser.add_argument('--tokenizer_path', type=str, default='../model/')
     parser.add_argument('--device', default='cuda' if torch.cuda.is_available() else 'cpu')
     parser.add_argument('--gen_length', default=64, type=int, help="每次生成的 token 数")
     parser.add_argument('--num_runs', default=5, type=int, help="每个配置重复次数")
