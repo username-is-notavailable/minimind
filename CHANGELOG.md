@@ -465,8 +465,11 @@ python train_pretrain.py --tokenizer_path ../model_05b_tokenizer
 
 - [ ] MLA 消融实验：对比 MLA 与标准 GQA 在 MiniMind2-Small (26M) 上的训练效果和推理效率
 - [x] ~~0.5B 专用分词器训练（32K 词表）~~（已完成，保存在 `model_05b_tokenizer/`）
-- [-] 0.5B 模型预训练：hidden_size=1536, layers=20, vocab=32K, ~545M 参数（**进行中**）
-- [ ] 0.5B 模型 SFT
+- [x] ~~0.5B 模型预训练~~（已完成，hidden_size=1536, layers=20, vocab=32K, ~545M 参数）
+- [x] ~~0.5B 模型 SFT~~（已完成）
+- [x] ~~0.5B 模型 DPO~~（已完成）
+- [x] ~~0.5B 模型 GRPO~~（已完成，~17h, 8×A100）
+- [ ] 0.5B MLA 扩展实验
 - [ ] KV Cache 显存节省量化测试
 - [x] ~~将 MLA 支持扩展到 `eval_llm.py`~~（已完成）
 - [x] ~~改进 `convert_model.py` 支持 MLA 和 CLI 参数~~（已完成）
@@ -478,4 +481,38 @@ python train_pretrain.py --tokenizer_path ../model_05b_tokenizer
 - [x] ~~全部训练脚本新增 `--tokenizer_path` 和 `--vocab_size` 参数~~（已完成）
 - [x] ~~conda 环境名统一、104M 训练参数记录~~（已完成）
 - [x] ~~1B → 0.5B 全面重命名~~（已完成）
+
+---
+
+## 14. 0.5B GQA 完整训练流程（Pretrain → SFT → DPO → GRPO）
+
+### 训练完成状态
+
+| 阶段 | 耗时 | GPU | HuggingFace |
+|---|---|---|---|
+| Pretrain | ~35h | 4×A100 | [leixinlin/MiniMind2-0.5B-Pretrain](https://huggingface.co/leixinlin/MiniMind2-0.5B-Pretrain) |
+| SFT | ~30min | 8×A100 | [leixinlin/MiniMind2-0.5B-SFT](https://huggingface.co/leixinlin/MiniMind2-0.5B-SFT) |
+| DPO | ~10min | 8×A100 | [leixinlin/MiniMind2-0.5B-DPO](https://huggingface.co/leixinlin/MiniMind2-0.5B-DPO) |
+| GRPO | ~17h | 8×A100 | [leixinlin/MiniMind2-0.5B-GRPO](https://huggingface.co/leixinlin/MiniMind2-0.5B-GRPO) |
+
+### 评测结果（C-Eval / 生成质量）
+
+| 阶段 | C-Eval | 生成评分 | 推理速度 |
+|---|---|---|---|
+| SFT | 26.00% | 82.87 | ~39-43 tok/s |
+| DPO | 26.00% | 82.87 | ~38-43 tok/s |
+| GRPO | 25.93% | **83.53** | ~38-41 tok/s |
+
+### 改动文件
+
+| 文件 | 改动类型 | 说明 |
+|---|---|---|
+| `eval_llm.py` | 参数新增 | 添加 `--vocab_size` 和 `--tokenizer_path` 以支持 0.5B 模型评测 |
+| `benchmark/eval_pretrain.py` | 参数新增 | 同上 |
+| `benchmark/eval_ceval.py` | 参数新增 | 同上 |
+| `benchmark/eval_efficiency.py` | 参数新增 | 同上 |
+| `benchmark/eval_generation.py` | 参数新增 | 同上 |
+| `benchmark/run_all.py` | 参数新增 | 添加 `--vocab_size` 和 `--tokenizer_path` 并传递给子脚本 |
+| `scripts/convert_model.py` | 参数新增 | 添加 `--vocab_size` 和 `--tokenizer_path`，修改 tokenizer 加载逻辑 |
+| `EXPERIMENT_PLAN.md` | 文档更新 | 记录 0.5B 全流程训练参数和评测结果 |
 - [ ] 将 MLA 支持扩展到 `train_distillation.py`
